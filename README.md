@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🛒 SEF E-Commerce RESTful API</h1>
+  <h1>SEF E-Commerce RESTful API</h1>
   
   <p>
     <strong>A production-ready, feature-rich backend API for modern E-commerce applications.</strong>
@@ -16,29 +16,29 @@
 
 ---
 
-## 📖 Overview
+## Overview
 
 This project is a comprehensive backend REST API tailored for E-commerce platforms. Built using the **MVC (Model-View-Controller)** architecture, it handles the entire lifecycle of an online store: from highly secure OTP-based user authentication and complex product inventory management (with Cloudinary integrations) to atomic order processing and an Admin analytics dashboard.
 
-## ✨ Key Features
+## Key Features
 
-- **🔐 Robust Authentication:**
+- **Robust Authentication:**
   - OTP-based email verification via Nodemailer.
   - Dual-token system (JSON Access Token + HttpOnly Cookie Refresh Token).
   - Secure password reset flow and Role-Based Access Control (Admin vs. Customer).
-- **📦 Product Management:**
+- **Product Management:**
   - Full-text search, pagination, and advanced filtering (by price, category, brand).
   - Dynamic image uploads utilizing `Multer` and `Cloudinary`.
   - Built-in review and rating calculation system.
-- **🛒 Cart & Checkout:**
+- **Cart & Checkout:**
   - Real-time stock deduction and restoration upon cart manipulation.
   - Coupon application engine (Percentage and Fixed discounts).
-- **💳 Order Processing:**
+- **Order Processing:**
   - Protected with **Mongoose Transactions** to guarantee data integrity during checkout.
   - Order status tracking and automated email updates to customers.
-- **⚙️ Admin Dashboard:**
+- **Admin Dashboard:**
   - Aggregation pipelines to generate complex stats: Total Revenue, Top 5 Products, Daily Sales over 7 Days.
-- **🛡️ Security & Performance Enhancements:**
+- **Security & Performance Enhancements:**
   - Database queries optimized with `.lean()` for up to 5x faster read operations.
   - Rate limiting to block brute force and spam attacks.
   - Protected against NoSQL injections (`express-mongo-sanitize`) and HTTP header vulnerabilities (`helmet`).
@@ -46,7 +46,7 @@ This project is a comprehensive backend REST API tailored for E-commerce platfor
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Category         | Technologies Used                                                              |
 | ---------------- | ------------------------------------------------------------------------------ |
@@ -58,7 +58,7 @@ This project is a comprehensive backend REST API tailored for E-commerce platfor
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/en/) (v14 or higher)
@@ -109,7 +109,7 @@ This project is a comprehensive backend REST API tailored for E-commerce platfor
 
 ---
 
-## 📡 API Endpoints Overview
+## API Endpoints Overview
 
 *All requests and responses use `application/json` format. Protected routes require an `Authorization: Bearer <token>` header.*
 
@@ -145,7 +145,7 @@ This project is a comprehensive backend REST API tailored for E-commerce platfor
 
 ---
 
-## 📂 Project Architecture
+## Project Architecture
 
 ```text
 ecommerce-api/
