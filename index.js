@@ -3,6 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 const connectDB = require('./DB/connection');
 const errorHandler = require('./middleware/error.middleware');
 
@@ -22,7 +25,23 @@ const app = express();
 connectDB();
 
 // Middlewares
+app.use(helmet()); // Security headers
+app.use(mongoSanitize()); // Prevent NoSQL injection
 app.use(cors());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+app.use('/api', limiter);
+app.use('/auth', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // 20 requests per 15 mins for auth
+  message: 'Too many auth requests from this IP, please try again later.'
+}));
+
 app.use(express.json()); // Parses incoming JSON requests
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

@@ -172,13 +172,13 @@ exports.clearCart = async (req, res, next) => {
     if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
     // Restore stock for all items
-    for (const item of cart.items) {
+    await Promise.all(cart.items.map(async (item) => {
       const product = await Product.findById(item.product);
       if (product) {
         product.stock += item.quantity;
         await product.save();
       }
-    }
+    }));
 
     cart.items = [];
     cart.coupon = undefined;

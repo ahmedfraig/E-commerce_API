@@ -71,7 +71,7 @@ exports.getMyOrders = async (req, res, next) => {
     if (status) query.status = status;
 
     const skip = (page - 1) * limit;
-    const orders = await Order.find(query).skip(skip).limit(Number(limit)).sort('-createdAt');
+    const orders = await Order.find(query).skip(skip).limit(Number(limit)).sort('-createdAt').lean();
     const total = await Order.countDocuments(query);
 
     res.status(200).json({ success: true, count: orders.length, total, data: orders });
@@ -84,7 +84,7 @@ exports.getMyOrders = async (req, res, next) => {
 // @route   GET /orders/my/:id
 exports.getMyOrder = async (req, res, next) => {
   try {
-    const order = await Order.findOne({ _id: req.params.id, user: req.user.id });
+    const order = await Order.findOne({ _id: req.params.id, user: req.user.id }).lean();
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.status(200).json({ success: true, data: order });
   } catch (error) {
@@ -110,13 +110,13 @@ exports.cancelOrder = async (req, res, next) => {
     await order.save({ session });
 
     // Restore stock
-    for (const item of order.items) {
+    await Promise.all(order.items.map(async (item) => {
       const product = await Product.findById(item.product).session(session);
       if (product) {
         product.stock += item.quantity;
         await product.save({ session });
       }
-    }
+    }));
 
     await session.commitTransaction();
     session.endSession();

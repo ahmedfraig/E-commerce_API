@@ -77,7 +77,7 @@ exports.getAllOrders = async (req, res, next) => {
     }
 
     const skip = (page - 1) * limit;
-    const orders = await queryBuilder.skip(skip).limit(Number(limit));
+    const orders = await queryBuilder.skip(skip).limit(Number(limit)).lean();
     const total = await Order.countDocuments(query);
 
     res.status(200).json({ success: true, count: orders.length, total, data: orders });
@@ -90,7 +90,7 @@ exports.getAllOrders = async (req, res, next) => {
 // @route   GET /admin/orders/:id
 exports.getOrderDetails = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id).populate('user', 'username email phone');
+    const order = await Order.findById(req.params.id).populate('user', 'username email phone').lean();
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.status(200).json({ success: true, data: order });
   } catch (error) {
@@ -131,7 +131,7 @@ exports.updateOrderStatus = async (req, res, next) => {
 // @route   GET /admin/carts
 exports.getAllCarts = async (req, res, next) => {
   try {
-    const carts = await Cart.find().populate('user', 'username email');
+    const carts = await Cart.find().populate('user', 'username email').lean();
     res.status(200).json({ success: true, count: carts.length, data: carts });
   } catch (error) {
     next(error);
@@ -148,7 +148,8 @@ exports.getAllWishlists = async (req, res, next) => {
     const wishlists = await Wishlist.find()
       .populate('user', 'username email')
       .skip(skip)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
     
     const total = await Wishlist.countDocuments();
 

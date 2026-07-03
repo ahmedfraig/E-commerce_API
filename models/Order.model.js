@@ -76,5 +76,9 @@ const orderSchema = new mongoose.Schema({
   adminNote: { type: String, maxlength: 1000 }
 }, { timestamps: true });
 
+// Indexes
+orderSchema.index({ user: 1, status: 1 });
+orderSchema.index({ createdAt: -1 });
+
 const Order = mongoose.model('Order', orderSchema);
 module.exports = Order;

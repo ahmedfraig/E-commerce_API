@@ -128,10 +128,8 @@ exports.updateProduct = async (req, res, next) => {
 
     if (req.body.deletedImages) {
       const deletedImages = JSON.parse(req.body.deletedImages);
-      for (const public_id of deletedImages) {
-        await cloudinary.uploader.destroy(public_id);
-        product.images = product.images.filter(img => img.public_id !== public_id);
-      }
+      await Promise.all(deletedImages.map(public_id => cloudinary.uploader.destroy(public_id)));
+      product.images = product.images.filter(img => !deletedImages.includes(img.public_id));
     }
 
     if (newImages.length > 0) {
@@ -162,11 +160,11 @@ exports.updateProduct = async (req, res, next) => {
 // @route   DELETE /products/:id
 exports.deleteProduct = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).lean();
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    for (const image of product.images) {
-      await cloudinary.uploader.destroy(image.public_id);
+    if (product.images && product.images.length > 0) {
+      await Promise.all(product.images.map(image => cloudinary.uploader.destroy(image.public_id)));
     }
 
     await Product.deleteOne({ _id: req.params.id });
@@ -230,7 +228,7 @@ exports.deleteReview = async (req, res, next) => {
 // @route   GET /products/:id/reviews
 exports.getReviews = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id).select('reviews');
+    const product = await Product.findById(req.params.id).select('reviews').lean();
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.status(200).json({ success: true, data: product.reviews });
   } catch (error) {

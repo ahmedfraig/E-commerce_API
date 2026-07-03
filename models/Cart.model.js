@@ -27,6 +27,9 @@ const cartSchema = new mongoose.Schema({
   }
 }, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } });
 
+// Indexes
+cartSchema.index({ user: 1 });
+
 // Virtuals for calculations
 cartSchema.virtual('subtotal').get(function () {
   return this.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
