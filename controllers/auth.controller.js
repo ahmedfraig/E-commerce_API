@@ -129,8 +129,9 @@ exports.forgotPassword = async (req, res, next) => {
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    // Assuming the frontend runs on localhost:3000 during development
-    const resetUrl = `http://localhost:3000/reset-password/${resetToken}`;
+    // Read the frontend URL from environment variables, fallback to localhost for development
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
     
     await sendEmail({
       email,
