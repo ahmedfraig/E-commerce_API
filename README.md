@@ -33,16 +33,18 @@ This project is a comprehensive backend REST API tailored for E-commerce platfor
 - **Cart & Checkout:**
   - Real-time stock deduction and restoration upon cart manipulation.
   - Coupon application engine (Percentage and Fixed discounts).
-- **Order Processing:**
-  - Protected with **Mongoose Transactions** to guarantee data integrity during checkout.
-  - Order status tracking and automated email updates to customers.
+### Orders (`/orders`)
+- Protected with **Mongoose Transactions** to guarantee data integrity during checkout.
+- Stripe Payment integration with secure Webhooks (`payment_intent.succeeded`).
+- Order status tracking and automated email updates to customers.
 - **Admin Dashboard:**
   - Aggregation pipelines to generate complex stats: Total Revenue, Top 5 Products, Daily Sales over 7 Days.
 - **Security & Performance Enhancements:**
   - Database queries optimized with `.lean()` for up to 5x faster read operations.
   - Rate limiting to block brute force and spam attacks.
-  - Protected against NoSQL injections (`express-mongo-sanitize`) and HTTP header vulnerabilities (`helmet`).
+  - Protected against HTTP header vulnerabilities (`helmet`).
   - Concurrent background processing using `Promise.all` for tasks like stock restoration and bulk image deletion.
+  - Fully configured for Serverless deployment on platforms like Vercel (`vercel.json` included).
 
 ---
 
@@ -52,8 +54,9 @@ This project is a comprehensive backend REST API tailored for E-commerce platfor
 | ---------------- | ------------------------------------------------------------------------------ |
 | **Core**         | Node.js, Express.js                                                            |
 | **Database**     | MongoDB, Mongoose ODM                                                          |
-| **Security**     | bcryptjs, jsonwebtoken (JWT), express-rate-limit, helmet, express-mongo-sanitize |
+| **Security**     | bcryptjs, jsonwebtoken (JWT), express-rate-limit, helmet |
 | **File Storage** | Cloudinary, Multer                                                             |
+| **Payments**     | Stripe API                                                                     |
 | **Utilities**    | Nodemailer (Emails), Joi (Validation), Slugify, Morgan (Logging)               |
 
 ---
@@ -64,6 +67,10 @@ This project is a comprehensive backend REST API tailored for E-commerce platfor
 - [Node.js](https://nodejs.org/en/) (v14 or higher)
 - [MongoDB](https://www.mongodb.com/) (Local or Atlas)
 - Cloudinary Account (for image hosting)
+- Stripe Account (for payment processing)
+
+### Postman Collection
+A complete `Ecommerce_Postman_Collection.json` is included in the root directory. Import it into Postman to instantly test all endpoints. It features automatic token management via pre-request scripts, so you never have to manually copy and paste your JWT!
 
 ### Installation
 
@@ -96,6 +103,10 @@ This project is a comprehensive backend REST API tailored for E-commerce platfor
    # Nodemailer Credentials
    EMAIL_USER=your_email@gmail.com
    EMAIL_PASS=your_app_password
+
+   # Stripe Configuration
+   STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
    ```
 
 4. **Start the server:**
@@ -136,6 +147,8 @@ This project is a comprehensive backend REST API tailored for E-commerce platfor
 
 ### Orders (`/orders`)
 - `POST /` - Place an order (Clears cart)
+- `POST /create-payment-intent` - Generate Stripe client secret
+- `POST /webhook` - Stripe webhook listener for successful payments (Base URL, not /orders)
 - `GET /my` - View your order history
 - `PATCH /my/:id/cancel` - Cancel a pending order
 
@@ -158,6 +171,8 @@ ecommerce-api/
 ├── utils/              # Helper functions (Nodemailer)
 ├── validation/         # Joi validation schemas
 ├── .env                # Environment variables
+├── vercel.json         # Vercel deployment configuration
+├── Ecommerce_Postman_Collection.json # Importable Postman workspace
 └── index.js            # Main application entry point
 ```
 
