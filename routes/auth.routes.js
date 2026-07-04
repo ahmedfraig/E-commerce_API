@@ -18,8 +18,8 @@ router.post('/register/send-otp', validate(registerSchema), registerSendOtp);
 router.post('/verify-otp', validate(verifyOtpSchema), verifyOtp);
 router.post('/login', validate(loginSchema), login);
 router.post('/logout', protect, logout);
-router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
-router.post('/reset-password/:token', validate(resetPasswordSchema), resetPassword);
+router.post('/forgot-password/send-otp', validate(forgotPasswordSchema), forgotPassword);
+router.post('/forgot-password/verify-otp', validate(resetPasswordSchema), resetPassword);
 router.get('/me', protect, getMe);
 
 module.exports = router;

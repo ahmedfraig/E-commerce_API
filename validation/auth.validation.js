@@ -22,5 +22,6 @@ exports.forgotPasswordSchema = Joi.object({
 });
 
 exports.resetPasswordSchema = Joi.object({
+  otp: Joi.string().required(),
   newPassword: Joi.string().min(6).required()
 });
