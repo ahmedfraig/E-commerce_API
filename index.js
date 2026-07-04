@@ -47,6 +47,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
 
 app.use(express.json()); // Parses incoming JSON requests
 app.use(express.urlencoded({ extended: true }));
+app.use(mongoSanitize()); // Prevent NoSQL injection
 app.use(cookieParser());
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
