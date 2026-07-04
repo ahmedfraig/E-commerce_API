@@ -14,9 +14,8 @@ const wishlistSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Pre-find hook to auto-populate products
-wishlistSchema.pre(/^find/, function (next) {
+wishlistSchema.pre(/^find/, function () {
   this.populate('products', 'name price images discountPrice slug');
-  next();
 });
 
 const Wishlist = mongoose.model('Wishlist', wishlistSchema);

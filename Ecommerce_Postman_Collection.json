@@ -202,7 +202,8 @@
               "mode": "formdata",
               "formdata": [
                 {"key": "name", "value": "New Laptop", "type": "text"},
-                {"key": "description", "value": "A great laptop", "type": "text"},
+                {"key": "shortDescription", "value": "Best laptop of 2026", "type": "text"},
+                {"key": "description", "value": "A great laptop with massive specs", "type": "text"},
                 {"key": "price", "value": "999.99", "type": "text"},
                 {"key": "category", "value": "Electronics", "type": "text"},
                 {"key": "brand", "value": "TechBrand", "type": "text"},
