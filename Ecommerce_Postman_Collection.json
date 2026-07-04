@@ -77,7 +77,7 @@
           }
         },
         {
-          "name": "Forgot Password (Send OTP)",
+          "name": "Forgot Password (Send Link)",
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
@@ -85,19 +85,19 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"testuser@gmail.com\"\n}"
             },
-            "url": {"raw": "{{base_url}}/auth/forgot-password/send-otp", "host": ["{{base_url}}"], "path": ["auth", "forgot-password", "send-otp"]}
+            "url": {"raw": "{{base_url}}/auth/forgot-password", "host": ["{{base_url}}"], "path": ["auth", "forgot-password"]}
           }
         },
         {
-          "name": "Forgot Password (Verify & Reset)",
+          "name": "Forgot Password (Reset)",
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"testuser@gmail.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+              "raw": "{\n  \"newPassword\": \"NewPassword123!\"\n}"
             },
-            "url": {"raw": "{{base_url}}/auth/forgot-password/verify-otp", "host": ["{{base_url}}"], "path": ["auth", "forgot-password", "verify-otp"]}
+            "url": {"raw": "{{base_url}}/auth/reset-password/TOKEN_HERE", "host": ["{{base_url}}"], "path": ["auth", "reset-password", "TOKEN_HERE"]}
           }
         },
         {

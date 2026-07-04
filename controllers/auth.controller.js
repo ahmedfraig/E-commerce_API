@@ -115,43 +115,46 @@ exports.logout = (req, res) => {
   res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
 
-exports.forgotPasswordSendOtp = async (req, res, next) => {
+exports.forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    // Generate token
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
-    user.resetPasswordToken = hashedOtp;
+    user.resetPasswordToken = hashedToken;
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
+    // Assuming the frontend runs on localhost:3000 during development
+    const resetUrl = `http://localhost:3000/reset-password/${resetToken}`;
+    
     await sendEmail({
       email,
-      subject: 'Password Reset OTP',
-      message: `Your password reset OTP is ${otp}. It is valid for 10 minutes.`
+      subject: 'Password Reset Link',
+      message: `You requested a password reset. Please click on the following link to reset your password: \n\n ${resetUrl}`
     });
 
-    res.status(200).json({ success: true, message: 'Password reset OTP sent' });
+    res.status(200).json({ success: true, message: 'Password reset link sent to email' });
   } catch (error) {
     next(error);
   }
 };
 
-exports.forgotPasswordVerifyOtp = async (req, res, next) => {
+exports.resetPassword = async (req, res, next) => {
   try {
-    const { email, otp, newPassword } = req.body;
-    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    const { newPassword } = req.body;
+    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
     const user = await User.findOne({
-      email,
-      resetPasswordToken: hashedOtp,
+      resetPasswordToken: hashedToken,
       resetPasswordExpire: { $gt: Date.now() }
     });
 
-    if (!user) return res.status(400).json({ message: 'Invalid or expired OTP' });
+    if (!user) return res.status(400).json({ message: 'Invalid or expired reset token' });
 
     user.password = newPassword;
     user.resetPasswordToken = undefined;
