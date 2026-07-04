@@ -42,6 +42,10 @@ app.use('/auth', rateLimit({
   message: 'Too many auth requests from this IP, please try again later.'
 }));
 
+// Stripe Webhook MUST be before express.json()
+const { stripeWebhook } = require('./controllers/order.controller');
+app.post('/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+
 app.use(express.json()); // Parses incoming JSON requests
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -71,3 +75,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Export the Express API for Vercel Serverless Functions
+module.exports = app;

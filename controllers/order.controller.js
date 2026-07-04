@@ -3,6 +3,7 @@ const Cart = require('../models/Cart.model');
 const Product = require('../models/Product.model');
 const mongoose = require('mongoose');
 const sendEmail = require('../utils/sendEmail');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // @desc    Create a new order
 // @route   POST /orders
@@ -53,12 +54,82 @@ exports.createOrder = async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
+    // Send order confirmation email
+    try {
+      const emailMessage = `
+        Thank you for your order!
+        Order ID: ${order[0]._id}
+        Total Price: $${order[0].totalPrice}
+        We will notify you once it ships.
+      `;
+      await sendEmail({
+        email: req.user.email,
+        subject: 'Order Confirmation',
+        message: emailMessage
+      });
+    } catch (err) {
+      console.error('Order confirmation email could not be sent', err);
+    }
+
     res.status(201).json({ success: true, data: order[0] });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
     res.status(400).json({ message: error.message });
   }
+};
+
+// @desc    Create Stripe Payment Intent
+// @route   POST /orders/create-payment-intent
+exports.createPaymentIntent = async (req, res, next) => {
+  try {
+    const cart = await Cart.findOne({ user: req.user.id });
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+
+    const subtotal = cart.subtotal;
+    const shippingFee = subtotal >= 1000 ? 0 : 50;
+    const tax = subtotal * 0.14;
+    const discount = cart.discountAmount;
+    const totalPrice = subtotal + shippingFee + tax - discount;
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(totalPrice * 100), // Stripe expects amounts in cents
+      currency: 'usd',
+      metadata: { userId: req.user.id.toString() }
+    });
+
+    res.status(200).json({
+      success: true,
+      clientSecret: paymentIntent.client_secret
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Stripe Webhook
+// @route   POST /webhook
+exports.stripeWebhook = async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('Webhook Error:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle successful payment
+  if (event.type === 'payment_intent.succeeded') {
+    const paymentIntent = event.data.object;
+    // In a real scenario, you'd find the order by paymentIntent.id and mark it paid.
+    console.log('Payment succeeded for User ID:', paymentIntent.metadata.userId);
+  }
+
+  res.status(200).json({ received: true });
 };
 
 // @desc    Get logged in user orders
