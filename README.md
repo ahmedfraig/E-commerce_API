@@ -120,41 +120,86 @@ A complete `Ecommerce_Postman_Collection.json` is included in the root directory
 
 ---
 
-## API Endpoints Overview
+## API Endpoints Reference
 
 *All requests and responses use `application/json` format. Protected routes require an `Authorization: Bearer <token>` header.*
 
-### Authentication (`/auth`)
-- `POST /register/send-otp` - Register and receive verification code
-- `POST /verify-otp` - Activate account
-- `POST /login` - Login to receive tokens
-- `POST /logout` - Clear refresh token cookie
+### 1. Authentication (`/auth`)
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| POST | `/auth/register/send-otp` | Register a new user and send OTP to email | Public |
+| POST | `/auth/verify-otp` | Verify OTP and activate account | Public |
+| POST | `/auth/login` | Login user and return JWT | Public |
+| POST | `/auth/logout` | Logout user (clears cookie) | User |
+| POST | `/auth/forgot-password/send-otp` | Send password reset link to email | Public |
+| POST | `/auth/forgot-password/verify-otp` | Set new password using token | Public |
+| GET | `/auth/me` | Get current logged in user profile | User |
 
-### Users (`/users`)
-- `GET /all` - Get all users (Admin)
-- `PATCH /:id` - Update user profile
+### 2. Users (`/users`)
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| POST | `/users/add` | Add a new user manually | Admin |
+| GET | `/users/all` | Get a list of all users | Admin |
+| GET | `/users/:id` | Get details of a single user | Admin |
+| PATCH | `/users/:id` | Update user profile | User/Admin |
+| DELETE | `/users/:id` | Delete a user | Admin |
 
-### Products (`/products`)
-- `GET /` - List products with pagination/filters
-- `GET /search` - Advanced text/category search
-- `POST /` - Create product (Admin, supports `multipart/form-data`)
-- `POST /:id/reviews` - Add a review/rating
+### 3. Products (`/products`)
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| GET | `/products` | Get all products (supports pagination & filters) | Public |
+| GET | `/products/search` | Advanced search for products | Public |
+| GET | `/products/:id` | Get single product by ID | Public |
+| POST | `/products` | Create a new product (supports image upload) | Admin |
+| PUT | `/products/update/:id`| Update product details | Admin |
+| DELETE | `/products/:id` | Delete a product | Admin |
+| POST | `/products/:id/reviews` | Add a review to a product | User |
+| DELETE | `/products/:id/reviews/:rid`| Delete a review | User/Admin |
+| GET | `/products/:id/reviews` | Get all reviews for a product | Public |
 
-### Carts (`/carts`)
-- `GET /` - Get or auto-create cart
-- `POST /items` - Add item to cart
-- `POST /coupon` - Apply discount code (e.g. `SAVE50`, `OFF50`)
+### 4. Carts (`/carts`)
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| GET | `/carts` | Get user's cart (creates one if it doesn't exist)| User |
+| POST | `/carts/items` | Add a new item to the cart | User |
+| PATCH | `/carts/items` | Update item quantity in the cart | User |
+| DELETE | `/carts/items/:productId`| Remove an item from the cart | User |
+| POST | `/carts/coupon` | Apply a discount coupon to the cart | User |
+| DELETE | `/carts/coupon` | Remove a coupon from the cart | User |
+| DELETE | `/carts/clear` | Empty the entire cart | User |
 
-### Orders (`/orders`)
-- `POST /` - Place an order (Clears cart)
-- `POST /create-payment-intent` - Generate Stripe client secret
-- `POST /webhook` - Stripe webhook listener for successful payments (Base URL, not /orders)
-- `GET /my` - View your order history
-- `PATCH /my/:id/cancel` - Cancel a pending order
+### 5. Orders (`/orders`)
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| POST | `/orders` | Create a cash/regular order from cart | User |
+| POST | `/orders/create-payment-intent`| Create a Stripe payment intent | User |
+| GET | `/orders/my` | Get all orders for the logged in user | User |
+| GET | `/orders/my/:id` | Get specific order details | User |
+| PATCH | `/orders/my/:id/cancel` | Cancel a pending order | User |
 
-### Admin Analytics (`/admin`)
-- `GET /dashboard` - Get full sales and customer statistics
-- `PATCH /orders/:id/status` - Update order status (triggers email)
+### 6. Wishlists (`/wishlists`)
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| GET | `/wishlists/my` | Get user's wishlist | User |
+| POST | `/wishlists/add/:productId`| Add a product to wishlist | User |
+| DELETE | `/wishlists/remove/:productId`| Remove a product from wishlist | User |
+| DELETE | `/wishlists/clear` | Clear the entire wishlist | User |
+
+### 7. Admin (`/admin`)
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| GET | `/admin/dashboard` | Get store statistics (users, revenue, etc) | Admin |
+| GET | `/admin` | Get all orders | Admin |
+| GET | `/admin/:id` | Get specific order details | Admin |
+| PATCH | `/admin/:id/status`| Update order status (triggers email) | Admin |
+| GET | `/admin/carts` | View all user carts | Admin |
+| GET | `/admin/wishlists` | View all user wishlists | Admin |
+| GET | `/admin/wishlists/stats`| View most wishlisted products | Admin |
+
+### Webhooks
+| Method | Endpoint | Description | Access |
+|--------|----------|-------------|--------|
+| POST | `/webhook` | Stripe Listener for successful payments| Stripe |
 
 ---
 
