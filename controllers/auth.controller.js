@@ -107,6 +107,28 @@ exports.login = async (req, res, next) => {
   }
 };
 
+exports.refreshToken = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'No refresh token provided' });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid or expired refresh token' });
+  }
+};
+
+
 exports.logout = (req, res) => {
   res.cookie('refreshToken', 'none', {
     expires: new Date(Date.now() + 10 * 1000),
