@@ -63,7 +63,26 @@ exports.updateUser = async (req, res, next) => {
       delete req.body.password;
     }
 
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+    let allowedUpdates = {};
+
+    if (req.user.role === 'admin') {
+      allowedUpdates = { ...req.body };
+    } else {
+      allowedUpdates = {
+        username: req.body.username,
+        phone: req.body.phone,
+        avatar: req.body.avatar,
+        addresses: req.body.addresses
+      };
+
+      Object.keys(allowedUpdates).forEach(key => {
+        if (allowedUpdates[key] === undefined) {
+          delete allowedUpdates[key];
+        }
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, allowedUpdates, {
       new: true,
       runValidators: true
     });
@@ -82,6 +101,34 @@ exports.deleteUser = async (req, res, next) => {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.status(200).json({ success: true, data: {} });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Change user password
+// @route   POST /users/change-password
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Get user with password explicitly selected
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Incorrect current password' });
+    }
+
+    // Save new password
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     next(error);
   }

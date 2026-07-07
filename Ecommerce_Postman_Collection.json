@@ -24,24 +24,53 @@
           "name": "Register (Send OTP)",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Password123!\"\n}"
             },
-            "url": {"raw": "{{base_url}}/auth/register/send-otp", "host": ["{{base_url}}"], "path": ["auth", "register", "send-otp"]}
+            "url": {
+              "raw": "{{base_url}}/auth/register/send-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "send-otp"
+              ]
+            }
           }
         },
         {
           "name": "Verify OTP",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"testuser@gmail.com\",\n  \"otp\": \"123456\"\n}"
             },
-            "url": {"raw": "{{base_url}}/auth/verify-otp", "host": ["{{base_url}}"], "path": ["auth", "verify-otp"]}
+            "url": {
+              "raw": "{{base_url}}/auth/verify-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            }
           }
         },
         {
@@ -60,52 +89,124 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Password123!\"\n}"
             },
-            "url": {"raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"]}
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           }
         },
         {
           "name": "Logout",
           "request": {
             "method": "POST",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
           }
         },
         {
           "name": "Forgot Password (Send Link)",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"testuser@gmail.com\"\n}"
             },
-            "url": {"raw": "{{base_url}}/auth/forgot-password/send-otp", "host": ["{{base_url}}"], "path": ["auth", "forgot-password", "send-otp"]}
+            "url": {
+              "raw": "{{base_url}}/auth/forgot-password/send-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "forgot-password",
+                "send-otp"
+              ]
+            }
           }
         },
         {
           "name": "Forgot Password (Reset)",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"otp\": \"TOKEN_HERE\",\n  \"newPassword\": \"NewPassword123!\"\n}"
             },
-            "url": {"raw": "{{base_url}}/auth/forgot-password/verify-otp", "host": ["{{base_url}}"], "path": ["auth", "forgot-password", "verify-otp"]}
+            "url": {
+              "raw": "{{base_url}}/auth/forgot-password/verify-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "forgot-password",
+                "verify-otp"
+              ]
+            }
           }
         },
         {
           "name": "Get Me (Profile)",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
           }
         }
       ]
@@ -118,30 +219,73 @@
           "request": {
             "method": "POST",
             "header": [
-              {"key": "Authorization", "value": "Bearer {{token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"newuser@gmail.com\",\n  \"password\": \"Pass123!\",\n  \"role\": \"customer\"\n}"
             },
-            "url": {"raw": "{{base_url}}/users/add", "host": ["{{base_url}}"], "path": ["users", "add"]}
+            "url": {
+              "raw": "{{base_url}}/users/add",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "add"
+              ]
+            }
           }
         },
         {
           "name": "Get All Users (Admin)",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/users/all", "host": ["{{base_url}}"], "path": ["users", "all"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "all"
+              ]
+            }
           }
         },
         {
           "name": "Get User (Admin)",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/users/USER_ID_HERE", "host": ["{{base_url}}"], "path": ["users", "USER_ID_HERE"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "USER_ID_HERE"
+              ]
+            }
           }
         },
         {
@@ -149,22 +293,51 @@
           "request": {
             "method": "PATCH",
             "header": [
-              {"key": "Authorization", "value": "Bearer {{token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"username\": \"UpdatedName\"\n}"
             },
-            "url": {"raw": "{{base_url}}/users/USER_ID_HERE", "host": ["{{base_url}}"], "path": ["users", "USER_ID_HERE"]}
+            "url": {
+              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "USER_ID_HERE"
+              ]
+            }
           }
         },
         {
           "name": "Delete User (Admin)",
           "request": {
             "method": "DELETE",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/users/USER_ID_HERE", "host": ["{{base_url}}"], "path": ["users", "USER_ID_HERE"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "USER_ID_HERE"
+              ]
+            }
           }
         }
       ]
@@ -176,64 +349,184 @@
           "name": "Get All Products",
           "request": {
             "method": "GET",
-            "url": {"raw": "{{base_url}}/products?page=1&limit=10", "host": ["{{base_url}}"], "path": ["products"], "query": [{"key":"page","value":"1"},{"key":"limit","value":"10"}]}
+            "url": {
+              "raw": "{{base_url}}/products?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
           }
         },
         {
           "name": "Search Products",
           "request": {
             "method": "GET",
-            "url": {"raw": "{{base_url}}/products/search?keyword=laptop", "host": ["{{base_url}}"], "path": ["products", "search"], "query": [{"key":"keyword","value":"laptop"}]}
+            "url": {
+              "raw": "{{base_url}}/products/search?keyword=laptop",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "laptop"
+                }
+              ]
+            }
           }
         },
         {
           "name": "Get Product by ID",
           "request": {
             "method": "GET",
-            "url": {"raw": "{{base_url}}/products/PRODUCT_ID_HERE", "host": ["{{base_url}}"], "path": ["products", "PRODUCT_ID_HERE"]}
+            "url": {
+              "raw": "{{base_url}}/products/PRODUCT_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "PRODUCT_ID_HERE"
+              ]
+            }
           }
         },
         {
           "name": "Create Product (Admin)",
           "request": {
             "method": "POST",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
-                {"key": "name", "value": "New Laptop", "type": "text"},
-                {"key": "shortDescription", "value": "Best laptop of 2026", "type": "text"},
-                {"key": "description", "value": "A great laptop with massive specs", "type": "text"},
-                {"key": "price", "value": "999.99", "type": "text"},
-                {"key": "category", "value": "Electronics", "type": "text"},
-                {"key": "brand", "value": "TechBrand", "type": "text"},
-                {"key": "stock", "value": "50", "type": "text"},
-                {"key": "images", "type": "file", "src": ""}
+                {
+                  "key": "name",
+                  "value": "New Laptop",
+                  "type": "text"
+                },
+                {
+                  "key": "shortDescription",
+                  "value": "Best laptop of 2026",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "A great laptop with massive specs",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "999.99",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "Electronics",
+                  "type": "text"
+                },
+                {
+                  "key": "brand",
+                  "value": "TechBrand",
+                  "type": "text"
+                },
+                {
+                  "key": "stock",
+                  "value": "50",
+                  "type": "text"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": ""
+                }
               ]
             },
-            "url": {"raw": "{{base_url}}/products", "host": ["{{base_url}}"], "path": ["products"]}
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products"
+              ]
+            }
           }
         },
         {
           "name": "Update Product (Admin)",
           "request": {
             "method": "PUT",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
-                {"key": "price", "value": "899.99", "type": "text"}
+                {
+                  "key": "price",
+                  "value": "899.99",
+                  "type": "text"
+                }
               ]
             },
-            "url": {"raw": "{{base_url}}/products/update/PRODUCT_ID_HERE", "host": ["{{base_url}}"], "path": ["products", "update", "PRODUCT_ID_HERE"]}
+            "url": {
+              "raw": "{{base_url}}/products/update/PRODUCT_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "update",
+                "PRODUCT_ID_HERE"
+              ]
+            }
           }
         },
         {
           "name": "Delete Product (Admin)",
           "request": {
             "method": "DELETE",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/products/PRODUCT_ID_HERE", "host": ["{{base_url}}"], "path": ["products", "PRODUCT_ID_HERE"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/PRODUCT_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "PRODUCT_ID_HERE"
+              ]
+            }
           }
         },
         {
@@ -241,29 +534,71 @@
           "request": {
             "method": "POST",
             "header": [
-              {"key": "Authorization", "value": "Bearer {{token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Excellent product!\"\n}"
             },
-            "url": {"raw": "{{base_url}}/products/PRODUCT_ID_HERE/reviews", "host": ["{{base_url}}"], "path": ["products", "PRODUCT_ID_HERE", "reviews"]}
+            "url": {
+              "raw": "{{base_url}}/products/PRODUCT_ID_HERE/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "PRODUCT_ID_HERE",
+                "reviews"
+              ]
+            }
           }
         },
         {
           "name": "Delete Review",
           "request": {
             "method": "DELETE",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/products/PRODUCT_ID_HERE/reviews/REVIEW_ID_HERE", "host": ["{{base_url}}"], "path": ["products", "PRODUCT_ID_HERE", "reviews", "REVIEW_ID_HERE"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/PRODUCT_ID_HERE/reviews/REVIEW_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "PRODUCT_ID_HERE",
+                "reviews",
+                "REVIEW_ID_HERE"
+              ]
+            }
           }
         },
         {
           "name": "Get Product Reviews",
           "request": {
             "method": "GET",
-            "url": {"raw": "{{base_url}}/products/PRODUCT_ID_HERE/reviews", "host": ["{{base_url}}"], "path": ["products", "PRODUCT_ID_HERE", "reviews"]}
+            "url": {
+              "raw": "{{base_url}}/products/PRODUCT_ID_HERE/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "PRODUCT_ID_HERE",
+                "reviews"
+              ]
+            }
           }
         }
       ]
@@ -275,8 +610,21 @@
           "name": "Get Cart",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/carts", "host": ["{{base_url}}"], "path": ["carts"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/carts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "carts"
+              ]
+            }
           }
         },
         {
@@ -284,14 +632,29 @@
           "request": {
             "method": "POST",
             "header": [
-              {"key": "Authorization", "value": "Bearer {{token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"productId\": \"PRODUCT_ID_HERE\",\n  \"quantity\": 2\n}"
             },
-            "url": {"raw": "{{base_url}}/carts/items", "host": ["{{base_url}}"], "path": ["carts", "items"]}
+            "url": {
+              "raw": "{{base_url}}/carts/items",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "carts",
+                "items"
+              ]
+            }
           }
         },
         {
@@ -299,22 +662,52 @@
           "request": {
             "method": "PATCH",
             "header": [
-              {"key": "Authorization", "value": "Bearer {{token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"productId\": \"PRODUCT_ID_HERE\",\n  \"quantity\": 5\n}"
             },
-            "url": {"raw": "{{base_url}}/carts/items", "host": ["{{base_url}}"], "path": ["carts", "items"]}
+            "url": {
+              "raw": "{{base_url}}/carts/items",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "carts",
+                "items"
+              ]
+            }
           }
         },
         {
           "name": "Remove Item from Cart",
           "request": {
             "method": "DELETE",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/carts/items/PRODUCT_ID_HERE", "host": ["{{base_url}}"], "path": ["carts", "items", "PRODUCT_ID_HERE"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/carts/items/PRODUCT_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "carts",
+                "items",
+                "PRODUCT_ID_HERE"
+              ]
+            }
           }
         },
         {
@@ -322,30 +715,73 @@
           "request": {
             "method": "POST",
             "header": [
-              {"key": "Authorization", "value": "Bearer {{token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"SAVE20\"\n}"
             },
-            "url": {"raw": "{{base_url}}/carts/coupon", "host": ["{{base_url}}"], "path": ["carts", "coupon"]}
+            "url": {
+              "raw": "{{base_url}}/carts/coupon",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "carts",
+                "coupon"
+              ]
+            }
           }
         },
         {
           "name": "Remove Coupon",
           "request": {
             "method": "DELETE",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/carts/coupon", "host": ["{{base_url}}"], "path": ["carts", "coupon"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/carts/coupon",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "carts",
+                "coupon"
+              ]
+            }
           }
         },
         {
           "name": "Clear Cart",
           "request": {
             "method": "DELETE",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/carts/clear", "host": ["{{base_url}}"], "path": ["carts", "clear"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/carts/clear",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "carts",
+                "clear"
+              ]
+            }
           }
         }
       ]
@@ -358,46 +794,119 @@
           "request": {
             "method": "POST",
             "header": [
-              {"key": "Authorization", "value": "Bearer {{token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"shippingAddress\": {\n    \"fullName\": \"John Doe\",\n    \"phone\": \"1234567890\",\n    \"country\": \"USA\",\n    \"city\": \"New York\",\n    \"address\": \"123 Main St\",\n    \"postalCode\": \"10001\"\n  },\n  \"paymentMethod\": \"cash\"\n}"
             },
-            "url": {"raw": "{{base_url}}/orders", "host": ["{{base_url}}"], "path": ["orders"]}
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
           }
         },
         {
           "name": "Create Payment Intent (Stripe)",
           "request": {
             "method": "POST",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/orders/create-payment-intent", "host": ["{{base_url}}"], "path": ["orders", "create-payment-intent"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/create-payment-intent",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "create-payment-intent"
+              ]
+            }
           }
         },
         {
           "name": "Get My Orders",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/orders/my", "host": ["{{base_url}}"], "path": ["orders", "my"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/my",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "my"
+              ]
+            }
           }
         },
         {
           "name": "Get My Specific Order",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/orders/my/ORDER_ID_HERE", "host": ["{{base_url}}"], "path": ["orders", "my", "ORDER_ID_HERE"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/my/ORDER_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "my",
+                "ORDER_ID_HERE"
+              ]
+            }
           }
         },
         {
           "name": "Cancel Order",
           "request": {
             "method": "PATCH",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/orders/my/ORDER_ID_HERE/cancel", "host": ["{{base_url}}"], "path": ["orders", "my", "ORDER_ID_HERE", "cancel"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/my/ORDER_ID_HERE/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "my",
+                "ORDER_ID_HERE",
+                "cancel"
+              ]
+            }
           }
         }
       ]
@@ -409,32 +918,90 @@
           "name": "Get My Wishlist",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/wishlists/my", "host": ["{{base_url}}"], "path": ["wishlists", "my"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wishlists/my",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "wishlists",
+                "my"
+              ]
+            }
           }
         },
         {
           "name": "Add Product to Wishlist",
           "request": {
             "method": "POST",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/wishlists/add/PRODUCT_ID_HERE", "host": ["{{base_url}}"], "path": ["wishlists", "add", "PRODUCT_ID_HERE"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wishlists/add/PRODUCT_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "wishlists",
+                "add",
+                "PRODUCT_ID_HERE"
+              ]
+            }
           }
         },
         {
           "name": "Remove Product from Wishlist",
           "request": {
             "method": "DELETE",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/wishlists/remove/PRODUCT_ID_HERE", "host": ["{{base_url}}"], "path": ["wishlists", "remove", "PRODUCT_ID_HERE"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wishlists/remove/PRODUCT_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "wishlists",
+                "remove",
+                "PRODUCT_ID_HERE"
+              ]
+            }
           }
         },
         {
           "name": "Clear Wishlist",
           "request": {
             "method": "DELETE",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/wishlists/clear", "host": ["{{base_url}}"], "path": ["wishlists", "clear"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/wishlists/clear",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "wishlists",
+                "clear"
+              ]
+            }
           }
         }
       ]
@@ -446,24 +1013,65 @@
           "name": "Get Dashboard Stats",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/admin/dashboard", "host": ["{{base_url}}"], "path": ["admin", "dashboard"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard"
+              ]
+            }
           }
         },
         {
           "name": "Get All Orders",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/admin", "host": ["{{base_url}}"], "path": ["admin"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin"
+              ]
+            }
           }
         },
         {
           "name": "Get Order Details",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/admin/ORDER_ID_HERE", "host": ["{{base_url}}"], "path": ["admin", "ORDER_ID_HERE"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/ORDER_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "ORDER_ID_HERE"
+              ]
+            }
           }
         },
         {
@@ -471,38 +1079,97 @@
           "request": {
             "method": "PATCH",
             "header": [
-              {"key": "Authorization", "value": "Bearer {{token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"shipped\"\n}"
             },
-            "url": {"raw": "{{base_url}}/admin/ORDER_ID_HERE/status", "host": ["{{base_url}}"], "path": ["admin", "ORDER_ID_HERE", "status"]}
+            "url": {
+              "raw": "{{base_url}}/admin/ORDER_ID_HERE/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "ORDER_ID_HERE",
+                "status"
+              ]
+            }
           }
         },
         {
           "name": "Get All Carts",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/admin/carts", "host": ["{{base_url}}"], "path": ["admin", "carts"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/carts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "carts"
+              ]
+            }
           }
         },
         {
           "name": "Get All Wishlists",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/admin/wishlists", "host": ["{{base_url}}"], "path": ["admin", "wishlists"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/wishlists",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "wishlists"
+              ]
+            }
           }
         },
         {
           "name": "Get Wishlists Stats",
           "request": {
             "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {"raw": "{{base_url}}/admin/wishlists/stats", "host": ["{{base_url}}"], "path": ["admin", "wishlists", "stats"]}
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/wishlists/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "wishlists",
+                "stats"
+              ]
+            }
           }
         }
       ]

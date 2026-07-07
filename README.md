@@ -130,6 +130,7 @@ A complete `Ecommerce_Postman_Collection.json` is included in the root directory
 | POST | `/auth/register/send-otp` | Register a new user and send OTP to email | Public |
 | POST | `/auth/verify-otp` | Verify OTP and activate account | Public |
 | POST | `/auth/login` | Login user and return JWT | Public |
+| GET | `/auth/refresh-token` | Exchange valid refresh cookie for new access token | Public |
 | POST | `/auth/logout` | Logout user (clears cookie) | User |
 | POST | `/auth/forgot-password/send-otp` | Send password reset link to email | Public |
 | POST | `/auth/forgot-password/verify-otp` | Set new password using token | Public |
@@ -139,8 +140,9 @@ A complete `Ecommerce_Postman_Collection.json` is included in the root directory
 | Method | Endpoint | Description | Access |
 |--------|----------|-------------|--------|
 | POST | `/users/add` | Add a new user manually | Admin |
-| GET | `/users/all` | Get a list of all users | Admin |
+| GET | `/users/all` | Get a list of all users (supports pagination `?page=1&limit=10`) | Admin |
 | GET | `/users/:id` | Get details of a single user | Admin |
+| POST | `/users/change-password` | Change user password using current password | User |
 | PATCH | `/users/:id` | Update user profile | User/Admin |
 | DELETE | `/users/:id` | Delete a user | Admin |
 
@@ -200,6 +202,30 @@ A complete `Ecommerce_Postman_Collection.json` is included in the root directory
 | Method | Endpoint | Description | Access |
 |--------|----------|-------------|--------|
 | POST | `/webhook` | Stripe Listener for successful payments| Stripe |
+
+---
+
+## Frontend Developer Guide
+
+If you are building the React/Vue/Angular frontend for this API, please note the following critical integration details:
+
+### 1. Credentials & Cookies
+This API uses **HttpOnly Cookies** to securely store the `refreshToken`. 
+Whenever you make a request to `/auth/login`, `/auth/refresh-token`, or `/auth/logout`, your HTTP client **must** be configured to send and receive cookies.
+*   **Axios:** Set `axios.defaults.withCredentials = true;` globally.
+*   **Fetch API:** Add `credentials: 'include'` to your fetch options.
+
+### 2. The JWT Flow & Interceptors
+The `accessToken` returned from `/auth/login` only lasts for 15 minutes. 
+You should build an **Axios Interceptor** that listens for API errors. 
+*   If an API call fails with a `401 Unauthorized` status AND the message is exactly `"Your token has expired. Please refresh."`, your interceptor should silently call `GET /auth/refresh-token`. 
+*   The API will read your HttpOnly cookie, return a brand new `accessToken`, and your interceptor can retry the original request without the user ever knowing!
+
+### 3. Standardized Responses
+The API follows a strict JSON response structure to make parsing easy:
+*   **Success (Single Item):** `{ "success": true, "data": { ... } }`
+*   **Success (List/Paginated):** `{ "success": true, "count": 10, "pagination": { "total": 50, "page": 1, "pages": 5 }, "data": [ ... ] }`
+*   **Errors:** `{ "success": false, "message": "Human readable error message here." }` *(Use this message directly in your UI toast notifications!)*
 
 ---
 

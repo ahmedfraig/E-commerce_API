@@ -1,12 +1,15 @@
 const express = require('express');
-const { addUser, getUsers, getUser, updateUser, deleteUser } = require('../controllers/user.controller');
+const { addUser, getUsers, getUser, updateUser, deleteUser, changePassword } = require('../controllers/user.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
+const validate = require('../middleware/validate.middleware');
+const { changePasswordSchema } = require('../validation/auth.validation');
 
 const router = express.Router();
 
 router.use(protect); // All user routes require authentication
 
 router.post('/add', authorize('admin'), addUser);
+router.post('/change-password', validate(changePasswordSchema), changePassword);
 router.get('/all', authorize('admin'), getUsers);
 router.get('/:id', authorize('admin'), getUser);
 router.patch('/:id', updateUser); // Authorized in controller

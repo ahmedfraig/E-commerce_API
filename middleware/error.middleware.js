@@ -14,7 +14,8 @@ const errorHandler = (err, req, res, next) => {
 
   // Mongoose duplicate key
   if (err.code === 11000) {
-    const message = 'Duplicate field value entered';
+    const field = Object.keys(err.keyValue)[0];
+    const message = `This ${field} is already taken`;
     error = new Error(message);
     error.statusCode = 400;
   }
@@ -24,6 +25,19 @@ const errorHandler = (err, req, res, next) => {
     const message = Object.values(err.errors).map(val => val.message);
     error = new Error(message.join(', '));
     error.statusCode = 400;
+  }
+
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    const message = 'Invalid token. Please log in again.';
+    error = new Error(message);
+    error.statusCode = 401;
+  }
+  
+  if (err.name === 'TokenExpiredError') {
+    const message = 'Your token has expired. Please refresh.';
+    error = new Error(message);
+    error.statusCode = 401;
   }
 
   res.status(error.statusCode || 500).json({
