@@ -36,5 +36,15 @@ exports.addUserSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
   phone: Joi.string().optional(),
-  role: Joi.string().valid('admin', 'customer').optional()
+  role: Joi.string().valid('admin', 'customer').optional(),
+  avatar: Joi.any().optional()
+});
+
+exports.updateUserSchema = Joi.object({
+  username: Joi.string().optional(),
+  email: Joi.string().email().optional(),
+  phone: Joi.string().optional(),
+  role: Joi.string().valid('admin', 'customer').optional(),
+  avatar: Joi.any().optional(),
+  addresses: Joi.any().optional()
 });
