@@ -4,7 +4,8 @@ const User = require('../models/User.model');
 // @route   POST /users/add
 exports.addUser = async (req, res, next) => {
   try {
-    const user = await User.create(req.body);
+    const userData = { ...req.body, isVerified: true };
+    const user = await User.create(userData);
     res.status(201).json({ success: true, data: user });
   } catch (error) {
     next(error);
