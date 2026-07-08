@@ -1,9 +1,9 @@
 const express = require('express');
-const { addUser, getUsers, getUser, updateUser, deleteUser, changePassword, changeRole } = require('../controllers/user.controller');
+const { addUser, getUsers, getUser, updateUser, deleteUser, changePassword } = require('../controllers/user.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 const validate = require('../middleware/validate.middleware');
 const upload = require('../middleware/upload.middleware');
-const { changePasswordSchema, addUserSchema, updateUserSchema, changeRoleSchema } = require('../validation/auth.validation');
+const { changePasswordSchema, addUserSchema, updateUserSchema } = require('../validation/auth.validation');
 
 const router = express.Router();
 
@@ -14,7 +14,6 @@ router.post('/change-password', validate(changePasswordSchema), changePassword);
 router.get('/all', authorize('admin'), getUsers);
 router.get('/:id', authorize('admin'), getUser);
 router.patch('/:id', upload.single('avatar'), validate(updateUserSchema), updateUser); // Authorized in controller
-router.patch('/:id/role', authorize('admin'), validate(changeRoleSchema), changeRole);
 router.delete('/:id', authorize('admin'), deleteUser);
 
 module.exports = router;
