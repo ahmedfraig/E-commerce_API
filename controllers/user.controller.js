@@ -1,9 +1,26 @@
 const User = require('../models/User.model');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
 
 // @desc    Add a new user (Admin)
 // @route   POST /users/add
 exports.addUser = async (req, res, next) => {
   try {
+    // Handle avatar upload to Cloudinary
+    if (req.file) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'ecommerce/users'
+        });
+        req.body.avatar = {
+          public_id: result.public_id,
+          url: result.secure_url
+        };
+      } finally {
+        fs.unlinkSync(req.file.path);
+      }
+    }
+
     const userData = { ...req.body, isVerified: true };
     const user = await User.create(userData);
     res.status(201).json({ success: true, data: user });
@@ -58,9 +75,32 @@ exports.updateUser = async (req, res, next) => {
   try {
     // Only allow user to update their own profile, or allow admin to update any profile
     if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(403).json({ message: 'Not authorized to update this user' });
     }
     
+    // Handle avatar upload to Cloudinary
+    if (req.file) {
+      try {
+        // Delete old avatar from Cloudinary (if it exists)
+        const existingUser = await User.findById(req.params.id);
+        if (existingUser?.avatar?.public_id) {
+          await cloudinary.uploader.destroy(existingUser.avatar.public_id);
+        }
+
+        // Upload new avatar
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'ecommerce/users'
+        });
+        req.body.avatar = {
+          public_id: result.public_id,
+          url: result.secure_url
+        };
+      } finally {
+        fs.unlinkSync(req.file.path);
+      }
+    }
+
     // Prevent password update through this route
     if (req.body.password) {
       delete req.body.password;
@@ -101,8 +141,15 @@ exports.updateUser = async (req, res, next) => {
 // @route   DELETE /users/:id
 exports.deleteUser = async (req, res, next) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Clean up avatar from Cloudinary
+    if (user.avatar?.public_id) {
+      await cloudinary.uploader.destroy(user.avatar.public_id);
+    }
+
+    await User.deleteOne({ _id: req.params.id });
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
     next(error);

@@ -252,15 +252,37 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"newuser@gmail.com\",\n  \"password\": \"Pass123!\",\n  \"role\": \"customer\"\n}"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "username",
+                  "value": "newadminuser",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "newadminuser@gmail.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Pass123!",
+                  "type": "text"
+                },
+                {
+                  "key": "role",
+                  "value": "customer",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
             },
             "url": {
               "raw": "{{base_url}}/users/add",
@@ -366,15 +388,27 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"UpdatedName\"\n}"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "username",
+                  "value": "UpdatedName",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "01000000000",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
             },
             "url": {
               "raw": "{{base_url}}/users/USER_ID_HERE",

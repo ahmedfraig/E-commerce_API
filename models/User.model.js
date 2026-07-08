@@ -30,8 +30,8 @@ const userSchema = new mongoose.Schema({
     type: String
   },
   avatar: {
-    type: String,
-    default: 'default_avatar_url' // Placeholder icon
+    public_id: { type: String, default: null },
+    url: { type: String, default: 'https://res.cloudinary.com/demo/image/upload/v1/defaults/default-avatar.png' }
   },
   role: {
     type: String,
