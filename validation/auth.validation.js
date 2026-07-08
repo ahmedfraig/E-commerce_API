@@ -30,3 +30,11 @@ exports.changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required(),
   newPassword: Joi.string().min(6).required()
 });
+
+exports.addUserSchema = Joi.object({
+  username: Joi.string().required(),
+  email: Joi.string().email().required(),
+  password: Joi.string().min(6).required(),
+  phone: Joi.string().optional(),
+  role: Joi.string().valid('admin', 'customer').optional()
+});

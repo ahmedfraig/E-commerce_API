@@ -3,7 +3,7 @@ const Product = require('../models/Product.model');
 
 // Helper
 const getOrCreateWishlist = async (userId) => {
-  let wishlist = await Wishlist.findOne({ user: userId });
+  let wishlist = await Wishlist.findOne({ user: userId }).lean();
   if (!wishlist) {
     wishlist = await Wishlist.create({ user: userId, products: [] });
   }

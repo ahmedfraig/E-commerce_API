@@ -1,13 +1,7 @@
 const Cart = require('../models/Cart.model');
 const Product = require('../models/Product.model');
-
-const availableCoupons = {
-  'SAVE10': { type: 'percentage', value: 10 },
-  'SAVE20': { type: 'percentage', value: 20 },
-  'SAVE50': { type: 'percentage', value: 50 },
-  'SAVE80': { type: 'percentage', value: 80 },
-  'OFF50': { type: 'fixed', value: 50 }
-};
+const Coupon = require('../models/Coupon.model');
+const mongoose = require('mongoose');
 
 // Helper to get or create cart
 const getOrCreateCart = async (userId) => {
@@ -32,13 +26,16 @@ exports.getCart = async (req, res, next) => {
 // @desc    Add item to cart
 // @route   POST /carts/items
 exports.addItemToCart = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { productId, quantity } = req.body;
-    const cart = await getOrCreateCart(req.user.id);
-    const product = await Product.findById(productId);
+    const cart = await Cart.findOne({ user: req.user.id }).session(session)
+      || await Cart.create([{ user: req.user.id, items: [] }], { session }).then(c => c[0]);
+    const product = await Product.findById(productId).session(session);
 
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-    if (product.stock < quantity) return res.status(400).json({ message: 'Not enough stock' });
+    if (!product) throw new Error('Product not found');
+    if (product.stock < quantity) throw new Error('Not enough stock');
 
     const existingItemIndex = cart.items.findIndex(item => item.product.toString() === productId);
     if (existingItemIndex > -1) {
@@ -54,70 +51,89 @@ exports.addItemToCart = async (req, res, next) => {
     }
 
     product.stock -= Number(quantity);
-    await product.save();
-    await cart.save();
+    await product.save({ session });
+    await cart.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({ success: true, data: cart });
   } catch (error) {
-    next(error);
+    await session.abortTransaction();
+    session.endSession();
+    res.status(400).json({ message: error.message });
   }
 };
 
 // @desc    Update item quantity
 // @route   PATCH /carts/items
 exports.updateItemQuantity = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { productId, quantity } = req.body;
-    const cart = await Cart.findOne({ user: req.user.id });
-    if (!cart) return res.status(404).json({ message: 'Cart not found' });
+    const cart = await Cart.findOne({ user: req.user.id }).session(session);
+    if (!cart) throw new Error('Cart not found');
 
     const itemIndex = cart.items.findIndex(item => item.product.toString() === productId);
-    if (itemIndex === -1) return res.status(404).json({ message: 'Item not in cart' });
+    if (itemIndex === -1) throw new Error('Item not in cart');
 
-    const product = await Product.findById(productId);
+    const product = await Product.findById(productId).session(session);
     const oldQuantity = cart.items[itemIndex].quantity;
     const difference = Number(quantity) - oldQuantity;
 
     if (difference > 0 && product.stock < difference) {
-      return res.status(400).json({ message: 'Not enough stock' });
+      throw new Error('Not enough stock');
     }
 
     cart.items[itemIndex].quantity = Number(quantity);
     product.stock -= difference;
 
-    await product.save();
-    await cart.save();
+    await product.save({ session });
+    await cart.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({ success: true, data: cart });
   } catch (error) {
-    next(error);
+    await session.abortTransaction();
+    session.endSession();
+    res.status(400).json({ message: error.message });
   }
 };
 
 // @desc    Remove item from cart
 // @route   DELETE /carts/items/:productId
 exports.removeItem = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
-    const cart = await Cart.findOne({ user: req.user.id });
-    if (!cart) return res.status(404).json({ message: 'Cart not found' });
+    const cart = await Cart.findOne({ user: req.user.id }).session(session);
+    if (!cart) throw new Error('Cart not found');
 
     const itemIndex = cart.items.findIndex(item => item.product.toString() === req.params.productId);
-    if (itemIndex === -1) return res.status(404).json({ message: 'Item not in cart' });
+    if (itemIndex === -1) throw new Error('Item not in cart');
 
     const quantity = cart.items[itemIndex].quantity;
     cart.items.splice(itemIndex, 1);
 
-    const product = await Product.findById(req.params.productId);
+    const product = await Product.findById(req.params.productId).session(session);
     if (product) {
       product.stock += quantity;
-      await product.save();
+      await product.save({ session });
     }
 
-    await cart.save();
+    await cart.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({ success: true, data: cart });
   } catch (error) {
-    next(error);
+    await session.abortTransaction();
+    session.endSession();
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -128,8 +144,17 @@ exports.applyCoupon = async (req, res, next) => {
     const { code } = req.body;
     const upperCode = code.toUpperCase();
 
-    if (!availableCoupons[upperCode]) {
+    const coupon = await Coupon.findOne({ code: upperCode, isActive: true });
+    if (!coupon) {
       return res.status(400).json({ message: 'Invalid coupon code' });
+    }
+
+    if (coupon.expiresAt < Date.now()) {
+      return res.status(400).json({ message: 'This coupon has expired' });
+    }
+
+    if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
+      return res.status(400).json({ message: 'This coupon has reached its usage limit' });
     }
 
     const cart = await Cart.findOne({ user: req.user.id });
@@ -137,11 +162,14 @@ exports.applyCoupon = async (req, res, next) => {
 
     cart.coupon = {
       code: upperCode,
-      discountType: availableCoupons[upperCode].type,
-      discountValue: availableCoupons[upperCode].value
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue
     };
 
+    coupon.usedCount += 1;
+    await coupon.save();
     await cart.save();
+
     res.status(200).json({ success: true, data: cart });
   } catch (error) {
     next(error);
@@ -167,25 +195,32 @@ exports.removeCoupon = async (req, res, next) => {
 // @desc    Clear cart
 // @route   DELETE /carts/clear
 exports.clearCart = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
-    const cart = await Cart.findOne({ user: req.user.id });
-    if (!cart) return res.status(404).json({ message: 'Cart not found' });
+    const cart = await Cart.findOne({ user: req.user.id }).session(session);
+    if (!cart) throw new Error('Cart not found');
 
     // Restore stock for all items
     await Promise.all(cart.items.map(async (item) => {
-      const product = await Product.findById(item.product);
+      const product = await Product.findById(item.product).session(session);
       if (product) {
         product.stock += item.quantity;
-        await product.save();
+        await product.save({ session });
       }
     }));
 
     cart.items = [];
     cart.coupon = undefined;
-    await cart.save();
+    await cart.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({ success: true, data: cart });
   } catch (error) {
-    next(error);
+    await session.abortTransaction();
+    session.endSession();
+    res.status(400).json({ message: error.message });
   }
 };

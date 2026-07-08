@@ -12,7 +12,7 @@ const generateAccessToken = (id) => {
 };
 
 const generateRefreshToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: '30d'
   });
 };
@@ -98,6 +98,8 @@ exports.login = async (req, res, next) => {
     const user = await User.findOne({ email }).select('+password');
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
 
+    if (!user.isVerified) return res.status(403).json({ message: 'Please verify your email first' });
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
 
@@ -115,7 +117,7 @@ exports.refreshToken = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     const user = await User.findById(decoded.id);
 
     if (!user) {
@@ -141,7 +143,9 @@ exports.forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) {
+      return res.status(200).json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
+    }
 
     // Generate token
     const resetToken = crypto.randomBytes(20).toString('hex');
@@ -191,10 +195,5 @@ exports.resetPassword = async (req, res, next) => {
 };
 
 exports.getMe = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.user.id);
-    res.status(200).json({ success: true, data: user });
-  } catch (error) {
-    next(error);
-  }
+  res.status(200).json({ success: true, data: req.user });
 };

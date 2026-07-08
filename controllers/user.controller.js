@@ -17,11 +17,13 @@ exports.addUser = async (req, res, next) => {
 exports.getUsers = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
     const skip = (page - 1) * limit;
 
-    const users = await User.find().skip(skip).limit(limit);
-    const total = await User.countDocuments();
+    const [users, total] = await Promise.all([
+      User.find().skip(skip).limit(limit).lean(),
+      User.countDocuments()
+    ]);
 
     res.status(200).json({ 
       success: true, 
@@ -42,7 +44,7 @@ exports.getUsers = async (req, res, next) => {
 // @route   GET /users/:id
 exports.getUser = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.status(200).json({ success: true, data: user });
   } catch (error) {

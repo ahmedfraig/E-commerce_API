@@ -136,7 +136,8 @@ exports.stripeWebhook = async (req, res) => {
 // @route   GET /orders/my
 exports.getMyOrders = async (req, res, next) => {
   try {
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, page = 1 } = req.query;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
     let query = { user: req.user.id };
     
     if (status) query.status = status;

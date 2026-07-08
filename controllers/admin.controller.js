@@ -9,34 +9,32 @@ const sendEmail = require('../utils/sendEmail');
 // @route   GET /admin/dashboard
 exports.getDashboardStats = async (req, res, next) => {
   try {
-    const totalRevenue = await Order.aggregate([
-      { $match: { status: { $ne: 'cancelled' } } },
-      { $group: { _id: null, total: { $sum: '$totalPrice' } } }
-    ]);
-
-    const orderCounts = await Order.countDocuments();
-    const totalCustomers = await User.countDocuments({ role: 'customer' });
-    
-    // Top 5 products
-    const topProducts = await Order.aggregate([
-      { $unwind: '$items' },
-      { $group: { _id: '$items.product', name: { $first: '$items.name' }, sold: { $sum: '$items.quantity' } } },
-      { $sort: { sold: -1 } },
-      { $limit: 5 }
-    ]);
-
-    // Daily revenue (last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const dailyRevenue = await Order.aggregate([
-      { $match: { createdAt: { $gte: sevenDaysAgo }, status: { $ne: 'cancelled' } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          revenue: { $sum: '$totalPrice' }
-        }
-      },
-      { $sort: { _id: 1 } }
+
+    const [totalRevenue, orderCounts, totalCustomers, topProducts, dailyRevenue] = await Promise.all([
+      Order.aggregate([
+        { $match: { status: { $ne: 'cancelled' } } },
+        { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+      ]),
+      Order.countDocuments(),
+      User.countDocuments({ role: 'customer' }),
+      Order.aggregate([
+        { $unwind: '$items' },
+        { $group: { _id: '$items.product', name: { $first: '$items.name' }, sold: { $sum: '$items.quantity' } } },
+        { $sort: { sold: -1 } },
+        { $limit: 5 }
+      ]),
+      Order.aggregate([
+        { $match: { createdAt: { $gte: sevenDaysAgo }, status: { $ne: 'cancelled' } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            revenue: { $sum: '$totalPrice' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ])
     ]);
 
     res.status(200).json({
@@ -58,7 +56,8 @@ exports.getDashboardStats = async (req, res, next) => {
 // @route   GET /admin/orders
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const { status, paymentMethod, startDate, endDate, sort, page = 1, limit = 10 } = req.query;
+    const { status, paymentMethod, startDate, endDate, sort, page = 1 } = req.query;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
     let query = {};
 
     if (status) query.status = status;
@@ -142,7 +141,8 @@ exports.getAllCarts = async (req, res, next) => {
 // @route   GET /admin/wishlists
 exports.getAllWishlists = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1 } = req.query;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
     const skip = (page - 1) * limit;
 
     const wishlists = await Wishlist.find()

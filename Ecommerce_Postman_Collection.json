@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "E-Commerce API Complete",
-    "description": "Full collection containing every endpoint for the SEF E-commerce API",
+    "description": "Full collection containing every endpoint for the SEF E-commerce API. Features automatic token management — login once and the token is saved for all subsequent requests.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -109,6 +109,36 @@
                 "login"
               ]
             }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if(res.accessToken) { pm.collectionVariables.set('token', res.accessToken); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/refresh-token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "refresh-token"
+              ]
+            },
+            "description": "Exchanges the HttpOnly refresh cookie for a new access token. The browser sends the cookie automatically."
           }
         },
         {
@@ -245,6 +275,36 @@
           }
         },
         {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Password123!\",\n  \"newPassword\": \"NewPassword456!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/change-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "change-password"
+              ]
+            }
+          }
+        },
+        {
           "name": "Get All Users (Admin)",
           "request": {
             "method": "GET",
@@ -255,13 +315,23 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/users/all",
+              "raw": "{{base_url}}/users/all?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "users",
                 "all"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             }
           }
@@ -375,7 +445,7 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/products/search?keyword=laptop",
+              "raw": "{{base_url}}/products/search?text=laptop&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
@@ -385,8 +455,16 @@
               ],
               "query": [
                 {
-                  "key": "keyword",
+                  "key": "text",
                   "value": "laptop"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
                 }
               ]
             }
@@ -851,13 +929,23 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/orders/my",
+              "raw": "{{base_url}}/orders/my?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "orders",
                 "my"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             }
           }
@@ -1042,12 +1130,22 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/admin",
+              "raw": "{{base_url}}/admin?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "admin"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             }
           }
@@ -1138,13 +1236,23 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/admin/wishlists",
+              "raw": "{{base_url}}/admin/wishlists?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "admin",
                 "wishlists"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             }
           }
