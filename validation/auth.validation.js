@@ -44,7 +44,10 @@ exports.updateUserSchema = Joi.object({
   username: Joi.string().optional(),
   email: Joi.string().email().optional(),
   phone: Joi.string().optional(),
-  role: Joi.string().valid('admin', 'customer').optional(),
   avatar: Joi.any().optional(),
   addresses: Joi.any().optional()
+});
+
+exports.changeRoleSchema = Joi.object({
+  role: Joi.string().valid('admin', 'customer').required()
 });

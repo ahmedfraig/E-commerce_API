@@ -110,6 +110,7 @@ exports.updateUser = async (req, res, next) => {
 
     if (req.user.role === 'admin') {
       allowedUpdates = { ...req.body };
+      delete allowedUpdates.role; // Role updates should use the dedicated change-role endpoint
     } else {
       allowedUpdates = {
         username: req.body.username,
@@ -179,6 +180,32 @@ exports.changePassword = async (req, res, next) => {
     await user.save();
 
     res.status(200).json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Change user role (Admin)
+// @route   PATCH /users/:id/role
+exports.changeRole = async (req, res, next) => {
+  try {
+    const { role } = req.body;
+    
+    // Check if user exists
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Prevent changing your own role to avoid locking out the only admin
+    if (req.user.id === req.params.id) {
+      return res.status(400).json({ message: 'Cannot change your own role' });
+    }
+
+    user.role = role;
+    await user.save();
+
+    res.status(200).json({ success: true, data: user });
   } catch (error) {
     next(error);
   }
