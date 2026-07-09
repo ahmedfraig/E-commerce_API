@@ -6,6 +6,13 @@ const fs = require('fs');
 // @route   POST /users/add
 exports.addUser = async (req, res, next) => {
   try {
+    // Check if email already exists before uploading image
+    const existingUser = await User.findOne({ email: req.body.email });
+    if (existingUser) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+
     // Handle avatar upload to Cloudinary
     if (req.file) {
       try {
