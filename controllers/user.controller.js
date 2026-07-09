@@ -89,16 +89,18 @@ exports.updateUser = async (req, res, next) => {
     // Handle avatar upload to Cloudinary
     if (req.file) {
       try {
-        // Delete old avatar from Cloudinary (if it exists)
         const existingUser = await User.findById(req.params.id);
+
+        // Upload new avatar FIRST
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'ecommerce/users'
+        });
+
+        // If upload is successful, delete old avatar from Cloudinary (if it exists)
         if (existingUser?.avatar?.public_id) {
           await cloudinary.uploader.destroy(existingUser.avatar.public_id);
         }
 
-        // Upload new avatar
-        const result = await cloudinary.uploader.upload(req.file.path, {
-          folder: 'ecommerce/users'
-        });
         req.body.avatar = {
           public_id: result.public_id,
           url: result.secure_url
@@ -169,6 +171,10 @@ exports.deleteUser = async (req, res, next) => {
 exports.changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ message: 'New password must be different from the current password' });
+    }
 
     // Get user with password explicitly selected
     const user = await User.findById(req.user.id).select('+password');
