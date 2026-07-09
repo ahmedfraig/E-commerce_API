@@ -86,6 +86,15 @@ exports.updateUser = async (req, res, next) => {
       return res.status(403).json({ message: 'Not authorized to update this user' });
     }
     
+    // Check if new email already exists (for admin updates)
+    if (req.user.role === 'admin' && req.body.email) {
+      const emailExists = await User.findOne({ email: req.body.email, _id: { $ne: req.params.id } });
+      if (emailExists) {
+        if (req.file) fs.unlinkSync(req.file.path);
+        return res.status(400).json({ message: 'Email already exists' });
+      }
+    }
+
     // Handle avatar upload to Cloudinary
     if (req.file) {
       try {

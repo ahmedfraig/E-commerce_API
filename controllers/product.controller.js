@@ -106,12 +106,24 @@ exports.getProduct = async (req, res, next) => {
 exports.createProduct = async (req, res, next) => {
   try {
     req.body.createdBy = req.user.id;
+    
+    // Create product instance and validate BEFORE uploading images
+    const product = new Product(req.body);
+    await product.validate();
+
     if (req.files && req.files.length > 0) {
-      req.body.images = await uploadImages(req.files);
+      product.images = await uploadImages(req.files);
     }
-    const product = await Product.create(req.body);
+    
+    await product.save();
     res.status(201).json({ success: true, data: product });
   } catch (error) {
+    // If validation fails and there are files, clean up temp files
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      });
+    }
     next(error);
   }
 };
@@ -121,8 +133,30 @@ exports.createProduct = async (req, res, next) => {
 exports.updateProduct = async (req, res, next) => {
   try {
     let product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (!product) {
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
+      }
+      return res.status(404).json({ message: 'Product not found' });
+    }
 
+    // Apply text field updates first
+    const { name, shortDescription, description, price, discountPrice, stock, category, brand, isActive } = req.body;
+    
+    if (name) product.name = name;
+    if (shortDescription) product.shortDescription = shortDescription;
+    if (description) product.description = description;
+    if (price) product.price = price;
+    if (discountPrice !== undefined) product.discountPrice = discountPrice;
+    if (stock !== undefined) product.stock = stock;
+    if (category) product.category = category;
+    if (brand) product.brand = brand;
+    if (isActive !== undefined) product.isActive = isActive;
+
+    // Validate the updated product BEFORE Cloudinary operations
+    await product.validate();
+
+    // Now it's safe to do Cloudinary operations
     let newImages = [];
     if (req.files && req.files.length > 0) {
       newImages = await uploadImages(req.files);
@@ -138,22 +172,13 @@ exports.updateProduct = async (req, res, next) => {
       product.images.push(...newImages);
     }
 
-    const { name, shortDescription, description, price, discountPrice, stock, category, brand, isActive } = req.body;
-    
-    if (name) product.name = name;
-    if (shortDescription) product.shortDescription = shortDescription;
-    if (description) product.description = description;
-    if (price) product.price = price;
-    if (discountPrice !== undefined) product.discountPrice = discountPrice;
-    if (stock !== undefined) product.stock = stock;
-    if (category) product.category = category;
-    if (brand) product.brand = brand;
-    if (isActive !== undefined) product.isActive = isActive;
-
     await product.save();
 
     res.status(200).json({ success: true, data: product });
   } catch (error) {
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
+    }
     next(error);
   }
 };
