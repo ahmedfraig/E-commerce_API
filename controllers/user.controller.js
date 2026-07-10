@@ -13,6 +13,15 @@ exports.addUser = async (req, res, next) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
+    // Validate user data BEFORE uploading to Cloudinary
+    const tempUser = new User({ ...req.body, isVerified: true });
+    try {
+      await tempUser.validate();
+    } catch (validationError) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return next(validationError);
+    }
+
     // Handle avatar upload to Cloudinary
     if (req.file) {
       try {
@@ -144,7 +153,8 @@ exports.updateUser = async (req, res, next) => {
 
     if (req.user.role === 'admin') {
       allowedUpdates = { ...req.body };
-      delete allowedUpdates.role; // Role updates should use the dedicated change-role endpoint
+      delete allowedUpdates.role;       // Use dedicated change-role endpoint
+      delete allowedUpdates.isVerified; // Prevent accidentally changing verification status
     } else {
       allowedUpdates = {
         username: req.body.username,
@@ -176,6 +186,11 @@ exports.updateUser = async (req, res, next) => {
 // @route   DELETE /users/:id
 exports.deleteUser = async (req, res, next) => {
   try {
+    // Prevent admin from deleting themselves
+    if (req.user.id === req.params.id) {
+      return res.status(400).json({ message: 'You cannot delete your own account' });
+    }
+
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 

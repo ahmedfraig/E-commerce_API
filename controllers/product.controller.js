@@ -22,8 +22,9 @@ const uploadImages = async (files) => {
 // @route   GET /products
 exports.getProducts = async (req, res, next) => {
   try {
-    const { category, brand, minPrice, maxPrice, sort, page = 1 } = req.query;
-    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
+    const { category, brand, minPrice, maxPrice, sort, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
+    const page = parseInt(pageQuery, 10);
+    const limit = Math.min(parseInt(limitQuery, 10) || 10, 100);
     let query = { isActive: true };
 
     if (category) query.category = category;
@@ -57,8 +58,9 @@ exports.getProducts = async (req, res, next) => {
 // @route   GET /products/search
 exports.searchProducts = async (req, res, next) => {
   try {
-    const { text, category, subcategory, brand, tags, minPrice, maxPrice, sort, page = 1 } = req.query;
-    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
+    const { text, category, subcategory, brand, tags, minPrice, maxPrice, sort, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
+    const page = parseInt(pageQuery, 10);
+    const limit = Math.min(parseInt(limitQuery, 10) || 10, 100);
     let query = { isActive: true };
 
     if (text) {
@@ -208,13 +210,26 @@ exports.addReview = async (req, res, next) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
+    if (!product.isActive) {
+      return res.status(400).json({ message: 'Cannot review an inactive product' });
+    }
+
     const alreadyReviewed = product.reviews.find(r => r.user.toString() === req.user.id.toString());
     if (alreadyReviewed) return res.status(400).json({ message: 'Product already reviewed' });
 
+    const { rating, comment } = req.body;
+
+    if (!rating || !comment) {
+      return res.status(400).json({ message: 'Rating and comment are required' });
+    }
+    if (Number(rating) < 1 || Number(rating) > 5) {
+      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+
     const review = {
       user: req.user.id,
-      rating: Number(req.body.rating),
-      comment: req.body.comment
+      rating: Number(rating),
+      comment
     };
 
     product.reviews.push(review);
