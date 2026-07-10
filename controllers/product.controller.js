@@ -102,7 +102,7 @@ exports.searchProducts = async (req, res, next) => {
 // @route   GET /products/:id
 exports.getProduct = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id).lean();
+    const product = await Product.findOne({ _id: req.params.id, isActive: true }).lean();
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.status(200).json({ success: true, data: product });
   } catch (error) {
