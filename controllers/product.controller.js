@@ -1,4 +1,5 @@
 const Product = require('../models/Product.model');
+const Order = require('../models/Order.model');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
 
@@ -178,7 +179,7 @@ exports.updateProduct = async (req, res, next) => {
       const validDeletedImages = deletedImages.filter(id => productPublicIds.includes(id));
       
       if (validDeletedImages.length > 0) {
-        await Promise.all(validDeletedImages.map(public_id => cloudinary.uploader.destroy(public_id)));
+        await Promise.allSettled(validDeletedImages.map(public_id => cloudinary.uploader.destroy(public_id)));
         product.images = product.images.filter(img => !validDeletedImages.includes(img.public_id));
       }
     }
@@ -225,6 +226,17 @@ exports.addReview = async (req, res, next) => {
 
     if (!product.isActive) {
       return res.status(400).json({ message: 'Cannot review an inactive product' });
+    }
+
+    // Verified Buyer Check
+    const hasBought = await Order.findOne({
+      user: req.user.id,
+      status: 'delivered',
+      'items.product': product._id
+    });
+
+    if (!hasBought) {
+      return res.status(403).json({ message: 'You must purchase and receive this product to review it' });
     }
 
     const alreadyReviewed = product.reviews.find(r => r.user.toString() === req.user.id.toString());
