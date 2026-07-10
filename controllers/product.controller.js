@@ -4,18 +4,17 @@ const fs = require('fs');
 
 // Helper to upload images to Cloudinary
 const uploadImages = async (files) => {
-  const images = [];
-  for (const file of files) {
+  const uploadPromises = files.map(async (file) => {
     const result = await cloudinary.uploader.upload(file.path, {
       folder: 'ecommerce/products'
     });
-    images.push({
+    fs.unlinkSync(file.path); // Remove temp file
+    return {
       public_id: result.public_id,
       url: result.secure_url
-    });
-    fs.unlinkSync(file.path); // Remove temp file
-  }
-  return images;
+    };
+  });
+  return Promise.all(uploadPromises);
 };
 
 // @desc    Get all active products
@@ -46,8 +45,11 @@ exports.getProducts = async (req, res, next) => {
     }
 
     const skip = (page - 1) * limit;
-    const products = await queryBuilder.skip(skip).limit(Number(limit)).lean();
-    const total = await Product.countDocuments(query);
+
+    const [products, total] = await Promise.all([
+      queryBuilder.skip(skip).limit(Number(limit)).lean(),
+      Product.countDocuments(query)
+    ]);
 
     res.status(200).json({ success: true, count: products.length, total, data: products });
   } catch (error) {
@@ -83,8 +85,11 @@ exports.searchProducts = async (req, res, next) => {
     }
 
     const skip = (page - 1) * limit;
-    const products = await queryBuilder.skip(skip).limit(Number(limit)).lean();
-    const total = await Product.countDocuments(query);
+    
+    const [products, total] = await Promise.all([
+      queryBuilder.skip(skip).limit(Number(limit)).lean(),
+      Product.countDocuments(query)
+    ]);
 
     res.status(200).json({ success: true, count: products.length, total, data: products });
   } catch (error) {
@@ -167,8 +172,15 @@ exports.updateProduct = async (req, res, next) => {
 
     if (req.body.deletedImages) {
       const deletedImages = JSON.parse(req.body.deletedImages);
-      await Promise.all(deletedImages.map(public_id => cloudinary.uploader.destroy(public_id)));
-      product.images = product.images.filter(img => !deletedImages.includes(img.public_id));
+      
+      // Only delete images that actually belong to this product
+      const productPublicIds = product.images.map(img => img.public_id);
+      const validDeletedImages = deletedImages.filter(id => productPublicIds.includes(id));
+      
+      if (validDeletedImages.length > 0) {
+        await Promise.all(validDeletedImages.map(public_id => cloudinary.uploader.destroy(public_id)));
+        product.images = product.images.filter(img => !validDeletedImages.includes(img.public_id));
+      }
     }
 
     if (newImages.length > 0) {
@@ -186,18 +198,18 @@ exports.updateProduct = async (req, res, next) => {
   }
 };
 
-// @desc    Delete product
+// @desc    Delete product (Soft Delete)
 // @route   DELETE /products/:id
 exports.deleteProduct = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id).lean();
+    const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    if (product.images && product.images.length > 0) {
-      await Promise.all(product.images.map(image => cloudinary.uploader.destroy(image.public_id)));
-    }
+    // Soft delete: keep the product and its images, just mark it inactive
+    // This preserves historical data in Orders and Carts
+    product.isActive = false;
+    await product.save();
 
-    await Product.deleteOne({ _id: req.params.id });
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
     next(error);
