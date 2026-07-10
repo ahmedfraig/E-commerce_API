@@ -35,6 +35,7 @@ exports.addItemToCart = async (req, res, next) => {
     const product = await Product.findById(productId).session(session);
 
     if (!product) throw new Error('Product not found');
+    if (!product.isActive) throw new Error('This product is no longer available');
     if (product.stock < quantity) throw new Error('Not enough stock');
 
     const existingItemIndex = cart.items.findIndex(item => item.product.toString() === productId);
@@ -160,14 +161,21 @@ exports.applyCoupon = async (req, res, next) => {
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
+    // Check minimum order amount
+    if (coupon.minOrderAmount > 0 && cart.subtotal < coupon.minOrderAmount) {
+      return res.status(400).json({
+        message: `This coupon requires a minimum order of $${coupon.minOrderAmount}`
+      });
+    }
+
     cart.coupon = {
       code: upperCode,
       discountType: coupon.discountType,
       discountValue: coupon.discountValue
     };
 
-    coupon.usedCount += 1;
-    await coupon.save();
+    // Atomically increment usedCount to prevent race conditions
+    await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } });
     await cart.save();
 
     res.status(200).json({ success: true, data: cart });

@@ -22,20 +22,21 @@ const uploadImages = async (files) => {
 // @route   GET /products
 exports.getProducts = async (req, res, next) => {
   try {
-    const { category, brand, minPrice, maxPrice, sort, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
+    const { category, brand, minPrice, maxPrice, sort, featured, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
     const page = parseInt(pageQuery, 10);
     const limit = Math.min(parseInt(limitQuery, 10) || 10, 100);
     let query = { isActive: true };
 
     if (category) query.category = category;
     if (brand) query.brand = brand;
+    if (featured === 'true') query.featured = true;
     if (minPrice || maxPrice) {
       query.price = {};
       if (minPrice) query.price.$gte = Number(minPrice);
       if (maxPrice) query.price.$lte = Number(maxPrice);
     }
 
-    let queryBuilder = Product.find(query);
+    let queryBuilder = Product.find(query).select('-reviews'); // Exclude heavy reviews array
 
     if (sort) {
       const sortBy = sort.split(',').join(' ');
@@ -76,7 +77,7 @@ exports.searchProducts = async (req, res, next) => {
       if (maxPrice) query.price.$lte = Number(maxPrice);
     }
 
-    let queryBuilder = Product.find(query);
+    let queryBuilder = Product.find(query).select('-reviews');
     if (sort) {
       queryBuilder = queryBuilder.sort(sort.split(',').join(' '));
     }

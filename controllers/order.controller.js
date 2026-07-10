@@ -24,13 +24,25 @@ exports.createOrder = async (req, res, next) => {
     const discount = cart.discountAmount;
     const totalPrice = subtotal + shippingFee + tax - discount;
 
-    const orderItems = cart.items.map(item => ({
-      product: item.product,
-      name: item.name,
-      image: item.image,
-      price: item.price,
-      quantity: item.quantity
-    }));
+    const orderItems = [];
+
+    // Re-validate stock for each item before creating the order
+    for (const item of cart.items) {
+      const product = await Product.findById(item.product).session(session);
+      if (!product || !product.isActive) {
+        throw new Error(`Product "${item.name}" is no longer available`);
+      }
+      if (product.stock < item.quantity) {
+        throw new Error(`Insufficient stock for "${item.name}". Only ${product.stock} left`);
+      }
+      orderItems.push({
+        product: item.product,
+        name: item.name,
+        image: item.image,
+        price: item.price,
+        quantity: item.quantity
+      });
+    }
 
     const order = await Order.create([{
       user: req.user.id,
@@ -163,6 +175,7 @@ exports.getMyOrder = async (req, res, next) => {
     next(error);
   }
 };
+
 
 // @desc    Cancel an order
 // @route   PATCH /orders/my/:id/cancel

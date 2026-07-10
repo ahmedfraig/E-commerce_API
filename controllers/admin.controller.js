@@ -12,7 +12,7 @@ exports.getDashboardStats = async (req, res, next) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const [totalRevenue, orderCounts, totalCustomers, topProducts, dailyRevenue] = await Promise.all([
+    const [totalRevenue, orderCounts, totalCustomers, topProducts, dailyRevenue, lowStockProducts] = await Promise.all([
       Order.aggregate([
         { $match: { status: { $ne: 'cancelled' } } },
         { $group: { _id: null, total: { $sum: '$totalPrice' } } }
@@ -34,7 +34,8 @@ exports.getDashboardStats = async (req, res, next) => {
           }
         },
         { $sort: { _id: 1 } }
-      ])
+      ]),
+      Product.find({ isActive: true, stock: { $lte: 10 } }).select('name stock').sort('stock').limit(10).lean()
     ]);
 
     res.status(200).json({
@@ -44,7 +45,8 @@ exports.getDashboardStats = async (req, res, next) => {
         orderCounts,
         totalCustomers,
         topProducts,
-        dailyRevenue
+        dailyRevenue,
+        lowStockProducts
       }
     });
   } catch (error) {
@@ -105,8 +107,27 @@ exports.updateOrderStatus = async (req, res, next) => {
     const order = await Order.findById(req.params.id).populate('user', 'email');
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
+    // Enforce valid status transitions
+    const validTransitions = {
+      pending:    ['confirmed', 'cancelled'],
+      confirmed:  ['processing', 'cancelled'],
+      processing: ['shipped', 'cancelled'],
+      shipped:    ['delivered'],
+      delivered:  ['returned'],
+      cancelled:  [],
+      returned:   []
+    };
+
+    const allowed = validTransitions[order.status];
+    if (!allowed || !allowed.includes(status)) {
+      return res.status(400).json({
+        message: `Cannot transition order from "${order.status}" to "${status}"`
+      });
+    }
+
     order.status = status;
     if (status === 'delivered') order.deliveredAt = Date.now();
+    if (status === 'cancelled') order.cancelledAt = Date.now();
     await order.save();
 
     // Send automated email
@@ -130,8 +151,22 @@ exports.updateOrderStatus = async (req, res, next) => {
 // @route   GET /admin/carts
 exports.getAllCarts = async (req, res, next) => {
   try {
-    const carts = await Cart.find().populate('user', 'username email').lean();
-    res.status(200).json({ success: true, count: carts.length, data: carts });
+    const { page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
+    const page = parseInt(pageQuery, 10);
+    const limit = Math.min(parseInt(limitQuery, 10), 100);
+    const skip = (page - 1) * limit;
+
+    const [carts, total] = await Promise.all([
+      Cart.find().populate('user', 'username email').skip(skip).limit(limit).lean(),
+      Cart.countDocuments()
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: carts.length,
+      pagination: { total, page, pages: Math.ceil(total / limit) },
+      data: carts
+    });
   } catch (error) {
     next(error);
   }
