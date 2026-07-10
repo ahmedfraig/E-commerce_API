@@ -40,13 +40,24 @@ exports.addUser = async (req, res, next) => {
 // @route   GET /users/all
 exports.getUsers = async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
+    const { search, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
+    const page = parseInt(pageQuery, 10);
+    const limit = Math.min(parseInt(limitQuery, 10), 100);
     const skip = (page - 1) * limit;
 
+    let query = {};
+    if (search) {
+      query = {
+        $or: [
+          { username: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ]
+      };
+    }
+
     const [users, total] = await Promise.all([
-      User.find().skip(skip).limit(limit).lean(),
-      User.countDocuments()
+      User.find(query).skip(skip).limit(limit).lean(),
+      User.countDocuments(query)
     ]);
 
     res.status(200).json({ 
@@ -80,6 +91,11 @@ exports.getUser = async (req, res, next) => {
 // @route   PATCH /users/:id
 exports.updateUser = async (req, res, next) => {
   try {
+    // Check if any data was provided
+    if (Object.keys(req.body).length === 0 && !req.file) {
+      return res.status(400).json({ message: 'No data provided to update' });
+    }
+
     // Only allow user to update their own profile, or allow admin to update any profile
     if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
       if (req.file) fs.unlinkSync(req.file.path);
