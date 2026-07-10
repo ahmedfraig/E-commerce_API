@@ -38,6 +38,10 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'customer'],
     default: 'customer'
   },
+  needsPasswordChange: {
+    type: Boolean,
+    default: false
+  },
   addresses: [addressSchema],
   wishlist: [{
     type: mongoose.Schema.Types.ObjectId,

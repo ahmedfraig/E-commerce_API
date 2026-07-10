@@ -24,6 +24,19 @@ exports.protect = async (req, res, next) => {
       return res.status(401).json({ message: 'The user belonging to this token does no longer exist.' });
     }
 
+    // Enforce forced password change
+    if (req.user.needsPasswordChange) {
+      const allowedPaths = ['/change-password', '/logout'];
+      const isAllowed = allowedPaths.some(path => req.originalUrl.includes(path));
+      
+      if (!isAllowed) {
+        return res.status(403).json({ 
+          message: 'You must change your password.',
+          forcePasswordChange: true
+        });
+      }
+    }
+
     next();
   } catch (error) {
     next(error);

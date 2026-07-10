@@ -37,7 +37,7 @@ exports.addUser = async (req, res, next) => {
       }
     }
 
-    const userData = { ...req.body, isVerified: true };
+    const userData = { ...req.body, isVerified: true, needsPasswordChange: true };
     const user = await User.create(userData);
     res.status(201).json({ success: true, data: user });
   } catch (error) {
@@ -228,8 +228,9 @@ exports.changePassword = async (req, res, next) => {
       return res.status(401).json({ message: 'Incorrect current password' });
     }
 
-    // Save new password
+    // Save new password and clear the force-change flag
     user.password = newPassword;
+    user.needsPasswordChange = false;
     await user.save();
 
     res.status(200).json({ success: true, message: 'Password updated successfully' });
