@@ -6,34 +6,9 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
+const { sendTokenResponse } = require('../utils/token');
 
-const generateAccessToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN
-  });
-};
 
-const generateRefreshToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: '30d'
-  });
-};
-
-const sendTokenResponse = (user, statusCode, res) => {
-  const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
-
-  const options = {
-    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    httpOnly: true
-  };
-  if (process.env.NODE_ENV === 'production') {
-    options.secure = true;
-  }
-  res.status(statusCode)
-    .cookie('refreshToken', refreshToken, options)
-    .json({ success: true, accessToken, user });
-};
 
 exports.registerSendOtp = async (req, res, next) => {
   try {
@@ -41,6 +16,9 @@ exports.registerSendOtp = async (req, res, next) => {
 
     const userExists = await User.findOne({ email });
     if (userExists) return next(new AppError(MESSAGES.USER_ALREADY_EXISTS, 400));
+
+    const existingOtp = await OTP.findOne({ email, expiresAt: { $gt: Date.now() } });
+    if (existingOtp) return next(new AppError('Otp already exists check your email', 400));
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
@@ -124,9 +102,9 @@ exports.refreshToken = async (req, res, next) => {
 };
 
 exports.logout = (req, res) => {
-  res.cookie('refreshToken', 'none', {
-    expires: new Date(Date.now() + 10 * 1000),
-    httpOnly: true
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production'
   });
   res.status(200).json({ success: true, message: MESSAGES.LOGGED_OUT });
 };

@@ -48,19 +48,27 @@ exports.addUser = async (req, res, next) => {
 // @route   GET /users/all
 exports.getUsers = async (req, res, next) => {
   try {
-    const { search, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
+    const { search, role, isverify, isVerified, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
     const page = parseInt(pageQuery, 10);
     const limit = Math.min(parseInt(limitQuery, 10), 100);
     const skip = (page - 1) * limit;
 
     let query = {};
+    
     if (search) {
-      query = {
-        $or: [
-          { username: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } }
-        ]
-      };
+      query.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (role) {
+      query.role = role;
+    }
+
+    const verifyStatus = isverify !== undefined ? isverify : isVerified;
+    if (verifyStatus !== undefined) {
+      query.isVerified = verifyStatus === 'true' || verifyStatus === true;
     }
 
     const [users, total] = await Promise.all([
