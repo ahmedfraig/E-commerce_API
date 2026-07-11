@@ -72,7 +72,7 @@ exports.getUsers = async (req, res, next) => {
     }
 
     const [users, total] = await Promise.all([
-      User.find(query).skip(skip).limit(limit).lean(),
+      User.find(query).skip(skip).limit(limit),
       User.countDocuments(query)
     ]);
 
@@ -95,7 +95,7 @@ exports.getUsers = async (req, res, next) => {
 // @route   GET /users/:id
 exports.getUser = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id).lean();
+    const user = await User.findById(req.params.id);
     if (!user) return next(new AppError(MESSAGES.USER_NOT_FOUND, 404));
     res.status(200).json({ success: true, data: user });
   } catch (error) {
