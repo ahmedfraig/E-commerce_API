@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "E-Commerce API Complete",
-    "description": "Full collection containing every endpoint for the SEF E-commerce API. Features automatic token management — login once and the token is saved for all subsequent requests.",
+    "description": "Full collection containing every endpoint for the SEF E-commerce API. Features automatic token management — login once and the token is saved for all subsequent requests. All passwords must be 8+ characters with at least one uppercase letter, one lowercase letter, and one number.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -32,7 +32,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Password123!\"\n}"
+              "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Password123\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/register/send-otp",
@@ -97,7 +97,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Password123!\"\n}"
+              "raw": "{\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Password123\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/login",
@@ -202,7 +202,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"otp\": \"TOKEN_HERE\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+              "raw": "{\n  \"otp\": \"TOKEN_HERE\",\n  \"newPassword\": \"NewPassword123\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/forgot-password/verify-otp",
@@ -238,6 +238,32 @@
               ]
             }
           }
+        },
+        {
+          "name": "Change Role (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/change-role/USER_ID_HERE",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "change-role", "USER_ID_HERE"]
+            },
+            "description": "Admin only. Changes a user's role to 'admin' or 'customer'. Cannot change your own role."
+          }
         }
       ]
     },
@@ -269,7 +295,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "Pass123!",
+                  "value": "Password123",
                   "type": "text"
                 },
                 {
@@ -312,7 +338,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"currentPassword\": \"Password123!\",\n  \"newPassword\": \"NewPassword456!\"\n}"
+              "raw": "{\n  \"currentPassword\": \"Password123\",\n  \"newPassword\": \"NewPassword456\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/users/change-password",
