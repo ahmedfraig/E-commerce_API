@@ -138,29 +138,19 @@ exports.getProduct = async (req, res, next) => {
 // @route   POST /products
 exports.createProduct = async (req, res, next) => {
   try {
-    // Guard: ensure req.body is a plain object (form-data can sometimes arrive malformed)
-    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
-      return next(new AppError('Invalid request body. Please use form-data.', 400));
-    }
-
-    // Images are required for product creation
-    if (!req.files || req.files.length === 0) {
-      return next(new AppError('At least one product image is required.', 400));
-    }
-
     req.body.createdBy = req.user.id;
 
-    // Upload images first (transactional — all or nothing)
-    const images = await uploadImages(req.files);
+    const product = new Product(req.body);
+    const validationError = product.validateSync({ pathsToSkip: ['images'] });
+    if (validationError) return next(validationError);
 
-    // Create product instance and validate BEFORE saving
-    const product = new Product({ ...req.body, images });
-    await product.validate();
+    if (req.files && req.files.length > 0) {
+      product.images = await uploadImages(req.files);
+    }
 
     await product.save();
     res.status(201).json({ success: true, data: product });
   } catch (error) {
-    // Clean up temp files on any failure
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
         if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
