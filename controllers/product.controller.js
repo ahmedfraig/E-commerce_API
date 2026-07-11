@@ -2,20 +2,46 @@ const Product = require('../models/Product.model');
 const Order = require('../models/Order.model');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
+const AppError = require('../utils/AppError');
+const { MESSAGES } = require('../utils/constants');
 
-// Helper to upload images to Cloudinary
+// Helper to upload images to Cloudinary (Transactional with Rollback)
 const uploadImages = async (files) => {
-  const uploadPromises = files.map(async (file) => {
-    const result = await cloudinary.uploader.upload(file.path, {
+  const uploadPromises = files.map(file => {
+    return cloudinary.uploader.upload(file.path, {
       folder: 'ecommerce/products'
+    }).then(result => {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      return { public_id: result.public_id, url: result.secure_url };
+    }).catch(error => {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      throw error;
     });
-    fs.unlinkSync(file.path); // Remove temp file
-    return {
-      public_id: result.public_id,
-      url: result.secure_url
-    };
   });
-  return Promise.all(uploadPromises);
+
+  const results = await Promise.allSettled(uploadPromises);
+
+  const successfulUploads = [];
+  const failedUploads = [];
+
+  results.forEach(result => {
+    if (result.status === 'fulfilled') {
+      successfulUploads.push(result.value);
+    } else {
+      failedUploads.push(result.reason);
+    }
+  });
+
+  if (failedUploads.length > 0) {
+    if (successfulUploads.length > 0) {
+      await Promise.allSettled(
+        successfulUploads.map(img => cloudinary.uploader.destroy(img.public_id))
+      );
+    }
+    throw new AppError(MESSAGES.PRODUCT_IMAGE_UPLOAD_FAILED, 500);
+  }
+
+  return successfulUploads;
 };
 
 // @desc    Get all active products
@@ -36,7 +62,7 @@ exports.getProducts = async (req, res, next) => {
       if (maxPrice) query.price.$lte = Number(maxPrice);
     }
 
-    let queryBuilder = Product.find(query).select('-reviews'); // Exclude heavy reviews array
+    let queryBuilder = Product.find(query).select('-reviews');
 
     if (sort) {
       const sortBy = sort.split(',').join(' ');
@@ -67,9 +93,7 @@ exports.searchProducts = async (req, res, next) => {
     const limit = Math.min(parseInt(limitQuery, 10) || 10, 100);
     let query = { isActive: true };
 
-    if (text) {
-      query.$text = { $search: text };
-    }
+    if (text) query.$text = { $search: text };
     if (category) query.category = category;
     if (subcategory) query.subcategory = subcategory;
     if (brand) query.brand = brand;
@@ -86,7 +110,7 @@ exports.searchProducts = async (req, res, next) => {
     }
 
     const skip = (page - 1) * limit;
-    
+
     const [products, total] = await Promise.all([
       queryBuilder.skip(skip).limit(Number(limit)).lean(),
       Product.countDocuments(query)
@@ -103,7 +127,7 @@ exports.searchProducts = async (req, res, next) => {
 exports.getProduct = async (req, res, next) => {
   try {
     const product = await Product.findOne({ _id: req.params.id, isActive: true }).lean();
-    if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
     res.status(200).json({ success: true, data: product });
   } catch (error) {
     next(error);
@@ -115,19 +139,17 @@ exports.getProduct = async (req, res, next) => {
 exports.createProduct = async (req, res, next) => {
   try {
     req.body.createdBy = req.user.id;
-    
-    // Create product instance and validate BEFORE uploading images
+
     const product = new Product(req.body);
     await product.validate();
 
     if (req.files && req.files.length > 0) {
       product.images = await uploadImages(req.files);
     }
-    
+
     await product.save();
     res.status(201).json({ success: true, data: product });
   } catch (error) {
-    // If validation fails and there are files, clean up temp files
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
         if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
@@ -146,12 +168,11 @@ exports.updateProduct = async (req, res, next) => {
       if (req.files && req.files.length > 0) {
         req.files.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
       }
-      return res.status(404).json({ message: 'Product not found' });
+      return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
     }
 
-    // Apply text field updates first
     const { name, shortDescription, description, price, discountPrice, stock, category, brand, isActive } = req.body;
-    
+
     if (name) product.name = name;
     if (shortDescription) product.shortDescription = shortDescription;
     if (description) product.description = description;
@@ -162,10 +183,8 @@ exports.updateProduct = async (req, res, next) => {
     if (brand) product.brand = brand;
     if (isActive !== undefined) product.isActive = isActive;
 
-    // Validate the updated product BEFORE Cloudinary operations
     await product.validate();
 
-    // Now it's safe to do Cloudinary operations
     let newImages = [];
     if (req.files && req.files.length > 0) {
       newImages = await uploadImages(req.files);
@@ -173,11 +192,9 @@ exports.updateProduct = async (req, res, next) => {
 
     if (req.body.deletedImages) {
       const deletedImages = JSON.parse(req.body.deletedImages);
-      
-      // Only delete images that actually belong to this product
       const productPublicIds = product.images.map(img => img.public_id);
       const validDeletedImages = deletedImages.filter(id => productPublicIds.includes(id));
-      
+
       if (validDeletedImages.length > 0) {
         await Promise.allSettled(validDeletedImages.map(public_id => cloudinary.uploader.destroy(public_id)));
         product.images = product.images.filter(img => !validDeletedImages.includes(img.public_id));
@@ -189,7 +206,6 @@ exports.updateProduct = async (req, res, next) => {
     }
 
     await product.save();
-
     res.status(200).json({ success: true, data: product });
   } catch (error) {
     if (req.files && req.files.length > 0) {
@@ -204,10 +220,8 @@ exports.updateProduct = async (req, res, next) => {
 exports.deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
 
-    // Soft delete: keep the product and its images, just mark it inactive
-    // This preserves historical data in Orders and Carts
     product.isActive = false;
     await product.save();
 
@@ -222,34 +236,22 @@ exports.deleteProduct = async (req, res, next) => {
 exports.addReview = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
 
-    if (!product.isActive) {
-      return res.status(400).json({ message: 'Cannot review an inactive product' });
-    }
+    if (!product.isActive) return next(new AppError(MESSAGES.PRODUCT_INACTIVE, 400));
 
-    // Verified Buyer Check
     const hasBought = await Order.findOne({
       user: req.user.id,
       status: 'delivered',
       'items.product': product._id
     });
 
-    if (!hasBought) {
-      return res.status(403).json({ message: 'You must purchase and receive this product to review it' });
-    }
+    if (!hasBought) return next(new AppError(MESSAGES.PRODUCT_REVIEW_PURCHASE_REQUIRED, 403));
 
     const alreadyReviewed = product.reviews.find(r => r.user.toString() === req.user.id.toString());
-    if (alreadyReviewed) return res.status(400).json({ message: 'Product already reviewed' });
+    if (alreadyReviewed) return next(new AppError(MESSAGES.PRODUCT_ALREADY_REVIEWED, 400));
 
     const { rating, comment } = req.body;
-
-    if (!rating || !comment) {
-      return res.status(400).json({ message: 'Rating and comment are required' });
-    }
-    if (Number(rating) < 1 || Number(rating) > 5) {
-      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
-    }
 
     const review = {
       user: req.user.id,
@@ -272,13 +274,13 @@ exports.addReview = async (req, res, next) => {
 exports.deleteReview = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
 
     const review = product.reviews.id(req.params.rid);
-    if (!review) return res.status(404).json({ message: 'Review not found' });
+    if (!review) return next(new AppError(MESSAGES.REVIEW_NOT_FOUND, 404));
 
     if (review.user.toString() !== req.user.id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to delete this review' });
+      return next(new AppError(MESSAGES.NOT_AUTHORIZED_REVIEW, 403));
     }
 
     review.deleteOne();
@@ -296,7 +298,7 @@ exports.deleteReview = async (req, res, next) => {
 exports.getReviews = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id).select('reviews').lean();
-    if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
     res.status(200).json({ success: true, data: product.reviews });
   } catch (error) {
     next(error);

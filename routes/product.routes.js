@@ -26,7 +26,7 @@ router.put('/update/:id', protect, authorize('admin'), upload.array('images', 5)
 router.delete('/:id', protect, authorize('admin'), deleteProduct);
 
 router.post('/:id/reviews', protect, validate(addReviewSchema), addReview);
-router.delete('/:id/reviews/:rid', protect, deleteReview); // role logic handled in controller
+router.delete('/:id/reviews/:rid', protect, deleteReview);
 router.get('/:id/reviews', getReviews);
 
 module.exports = router;

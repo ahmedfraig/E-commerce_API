@@ -4,6 +4,8 @@ const Product = require('../models/Product.model');
 const mongoose = require('mongoose');
 const sendEmail = require('../utils/sendEmail');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const AppError = require('../utils/AppError');
+const { MESSAGES } = require('../utils/constants');
 
 // @desc    Create a new order
 // @route   POST /orders
@@ -12,28 +14,27 @@ exports.createOrder = async (req, res, next) => {
   session.startTransaction();
   try {
     const { shippingAddress, paymentMethod, customerNote } = req.body;
-    
+
     const cart = await Cart.findOne({ user: req.user.id }).session(session);
     if (!cart || cart.items.length === 0) {
-      throw new Error('Cart is empty');
+      throw new AppError(MESSAGES.CART_EMPTY, 400);
     }
 
     const subtotal = cart.subtotal;
     const shippingFee = subtotal >= 1000 ? 0 : 50;
-    const tax = subtotal * 0.14; // 14% VAT
+    const tax = subtotal * 0.14;
     const discount = cart.discountAmount;
     const totalPrice = subtotal + shippingFee + tax - discount;
 
     const orderItems = [];
 
-    // Re-validate stock for each item before creating the order
     for (const item of cart.items) {
       const product = await Product.findById(item.product).session(session);
       if (!product || !product.isActive) {
-        throw new Error(`Product "${item.name}" is no longer available`);
+        throw new AppError(`Product "${item.name}" is no longer available`, 400);
       }
       if (product.stock < item.quantity) {
-        throw new Error(`Insufficient stock for "${item.name}". Only ${product.stock} left`);
+        throw new AppError(`Insufficient stock for "${item.name}". Only ${product.stock} left`, 400);
       }
       orderItems.push({
         product: item.product,
@@ -49,7 +50,7 @@ exports.createOrder = async (req, res, next) => {
       items: orderItems,
       shippingAddress,
       paymentMethod: paymentMethod || 'cash',
-      paymentStatus: paymentMethod === 'cash' ? 'pending' : 'pending', // Stripe flow later
+      paymentStatus: 'pending',
       subtotal,
       shippingFee,
       tax,
@@ -58,7 +59,6 @@ exports.createOrder = async (req, res, next) => {
       customerNote
     }], { session });
 
-    // Clear cart
     cart.items = [];
     cart.coupon = undefined;
     await cart.save({ session });
@@ -66,7 +66,6 @@ exports.createOrder = async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
-    // Send order confirmation email
     try {
       const emailMessage = `
         Thank you for your order!
@@ -87,7 +86,7 @@ exports.createOrder = async (req, res, next) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    res.status(400).json({ message: error.message });
+    next(error);
   }
 };
 
@@ -97,7 +96,7 @@ exports.createPaymentIntent = async (req, res, next) => {
   try {
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ message: 'Cart is empty' });
+      return next(new AppError(MESSAGES.CART_EMPTY, 400));
     }
 
     const subtotal = cart.subtotal;
@@ -107,7 +106,7 @@ exports.createPaymentIntent = async (req, res, next) => {
     const totalPrice = subtotal + shippingFee + tax - discount;
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(totalPrice * 100), // Stripe expects amounts in cents
+      amount: Math.round(totalPrice * 100),
       currency: 'usd',
       metadata: { userId: req.user.id.toString() }
     });
@@ -134,10 +133,8 @@ exports.stripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle successful payment
   if (event.type === 'payment_intent.succeeded') {
     const paymentIntent = event.data.object;
-    // In a real scenario, you'd find the order by paymentIntent.id and mark it paid.
     console.log('Payment succeeded for User ID:', paymentIntent.metadata.userId);
   }
 
@@ -151,12 +148,14 @@ exports.getMyOrders = async (req, res, next) => {
     const { status, page = 1 } = req.query;
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
     let query = { user: req.user.id };
-    
+
     if (status) query.status = status;
 
     const skip = (page - 1) * limit;
-    const orders = await Order.find(query).skip(skip).limit(Number(limit)).sort('-createdAt').lean();
-    const total = await Order.countDocuments(query);
+    const [orders, total] = await Promise.all([
+      Order.find(query).skip(skip).limit(Number(limit)).sort('-createdAt').lean(),
+      Order.countDocuments(query)
+    ]);
 
     res.status(200).json({ success: true, count: orders.length, total, data: orders });
   } catch (error) {
@@ -169,13 +168,12 @@ exports.getMyOrders = async (req, res, next) => {
 exports.getMyOrder = async (req, res, next) => {
   try {
     const order = await Order.findOne({ _id: req.params.id, user: req.user.id }).lean();
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!order) return next(new AppError(MESSAGES.ORDER_NOT_FOUND, 404));
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
   }
 };
-
 
 // @desc    Cancel an order
 // @route   PATCH /orders/my/:id/cancel
@@ -184,17 +182,16 @@ exports.cancelOrder = async (req, res, next) => {
   session.startTransaction();
   try {
     const order = await Order.findOne({ _id: req.params.id, user: req.user.id }).session(session);
-    
-    if (!order) throw new Error('Order not found');
+
+    if (!order) throw new AppError(MESSAGES.ORDER_NOT_FOUND, 404);
     if (order.status !== 'pending' && order.status !== 'confirmed') {
-      throw new Error('You cannot cancel an order that is already processing or shipped');
+      throw new AppError(MESSAGES.CANNOT_CANCEL_ORDER, 400);
     }
 
     order.status = 'cancelled';
     order.cancelledAt = Date.now();
     await order.save({ session });
 
-    // Restore stock
     await Promise.all(order.items.map(async (item) => {
       const product = await Product.findById(item.product).session(session);
       if (product) {
@@ -210,6 +207,6 @@ exports.cancelOrder = async (req, res, next) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    res.status(400).json({ message: error.message });
+    next(error);
   }
 };

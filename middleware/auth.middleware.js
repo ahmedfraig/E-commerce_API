@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User.model');
+const AppError = require('../utils/AppError');
+const { MESSAGES } = require('../utils/constants');
 
 exports.protect = async (req, res, next) => {
   let token;
@@ -10,7 +12,7 @@ exports.protect = async (req, res, next) => {
   }
 
   if (!token) {
-    return res.status(401).json({ message: 'Not authorized to access this route' });
+    return next(new AppError(MESSAGES.NOT_AUTHORIZED, 401));
   }
 
   try {
@@ -21,7 +23,7 @@ exports.protect = async (req, res, next) => {
     req.user = await User.findById(decoded.id).select('-password');
     
     if (!req.user) {
-      return res.status(401).json({ message: 'The user belonging to this token does no longer exist.' });
+      return next(new AppError('The user belonging to this token does no longer exist.', 401));
     }
 
     // Enforce forced password change
@@ -30,10 +32,7 @@ exports.protect = async (req, res, next) => {
       const isAllowed = allowedPaths.some(path => req.originalUrl.includes(path));
       
       if (!isAllowed) {
-        return res.status(403).json({ 
-          message: 'You must change your password.',
-          forcePasswordChange: true
-        });
+        return next(new AppError(MESSAGES.FORCE_PASSWORD_CHANGE, 403));
       }
     }
 
@@ -46,7 +45,7 @@ exports.protect = async (req, res, next) => {
 exports.authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: `User role ${req.user.role} is not authorized to access this route` });
+      return next(new AppError(`User role ${req.user.role} is not authorized to access this route`, 403));
     }
     next();
   };

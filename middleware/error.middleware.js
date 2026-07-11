@@ -1,49 +1,73 @@
-// Basic global error handler
+const multer = require('multer');
+const AppError = require('../utils/AppError');
+
 const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
+  let error = err;
 
-  console.error(err);
+  // If the error is not an operational AppError, convert known error types
+  if (!error.isOperational) {
 
-  // Mongoose bad ObjectId
-  if (err.name === 'CastError') {
-    const message = `Resource not found with id of ${err.value}`;
-    error = new Error(message);
-    error.statusCode = 404;
-  }
+    // Multer file upload errors
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        error = new AppError('File too large. Maximum allowed size is 5MB.', 400);
+      } else if (err.code === 'LIMIT_FILE_COUNT') {
+        error = new AppError('Too many files uploaded at once.', 400);
+      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        error = new AppError('Unexpected file field in the request.', 400);
+      } else {
+        error = new AppError(`File upload error: ${err.message}`, 400);
+      }
+    }
 
-  // Mongoose duplicate key
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    const message = `This ${field} is already taken`;
-    error = new Error(message);
-    error.statusCode = 400;
-  }
+    // Wrong image type from our custom fileFilter
+    else if (err.message === 'Not an image! Please upload only images.') {
+      error = new AppError('Invalid file type. Please upload only image files (jpg, png, webp, etc.).', 400);
+    }
 
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map(val => val.message);
-    error = new Error(message.join(', '));
-    error.statusCode = 400;
-  }
+    // Malformed JSON body
+    else if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+      error = new AppError('Invalid JSON format in request body. Please check your request syntax.', 400);
+    }
 
-  // JWT errors
-  if (err.name === 'JsonWebTokenError') {
-    const message = 'Invalid token. Please log in again.';
-    error = new Error(message);
-    error.statusCode = 401;
-  }
-  
-  if (err.name === 'TokenExpiredError') {
-    const message = 'Your token has expired. Please refresh.';
-    error = new Error(message);
-    error.statusCode = 401;
+    // Mongoose bad ObjectId
+    else if (err.name === 'CastError') {
+      error = new AppError(`Resource not found with id of ${err.value}`, 404);
+    }
+
+    // Mongoose duplicate key
+    else if (err.code === 11000) {
+      const field = Object.keys(err.keyValue)[0];
+      error = new AppError(`This ${field} is already taken`, 400);
+    }
+
+    // Mongoose validation error
+    else if (err.name === 'ValidationError') {
+      const message = Object.values(err.errors).map(val => val.message).join(', ');
+      error = new AppError(message, 400);
+    }
+
+    // JWT errors
+    else if (err.name === 'JsonWebTokenError') {
+      error = new AppError('Invalid token. Please log in again.', 401);
+    }
+
+    else if (err.name === 'TokenExpiredError') {
+      error = new AppError('Your token has expired. Please log in again.', 401);
+    }
+
+    else {
+      // Truly unknown bug — log it and hide details from client
+      console.error('UNHANDLED ERROR:', err);
+      error = new AppError('An unexpected error occurred. Please try again later.', 500);
+    }
   }
 
   res.status(error.statusCode || 500).json({
     success: false,
+    status: error.status || 'error',
     message: error.message || 'Server Error',
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack
+    stack: process.env.NODE_ENV === 'production' ? undefined : err.stack
   });
 };
 

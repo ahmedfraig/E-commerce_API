@@ -8,6 +8,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./DB/connection');
 const errorHandler = require('./middleware/error.middleware');
+const AppError = require('./utils/AppError');
 
 // Route files
 const authRoutes = require('./routes/auth.routes');
@@ -69,14 +70,32 @@ app.get('/', (req, res) => {
   res.send('Ecommerce API is running...');
 });
 
+// 404 handler — catch all unknown routes and return a clean JSON response
+app.use((req, res, next) => {
+  next(new AppError(`Route not found: ${req.method} ${req.originalUrl}`, 404));
+});
+
 // Error Handling Middleware
 app.use(errorHandler);
 
 // Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
 // Export the Express API for Vercel Serverless Functions
 module.exports = app;
+
+// Process-level error handlers for graceful shutdown
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED PROMISE REJECTION:', err.name, err.message);
+  console.error('Shutting down server gracefully...');
+  server.close(() => process.exit(1));
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err.name, err.message);
+  console.error('Shutting down server immediately...');
+  process.exit(1);
+});

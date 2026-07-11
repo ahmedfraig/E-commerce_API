@@ -1,7 +1,8 @@
 const Wishlist = require('../models/Wishlist.model');
 const Product = require('../models/Product.model');
+const AppError = require('../utils/AppError');
+const { MESSAGES } = require('../utils/constants');
 
-// Helper
 const getOrCreateWishlist = async (userId) => {
   let wishlist = await Wishlist.findOne({ user: userId }).lean();
   if (!wishlist) {
@@ -26,7 +27,7 @@ exports.getWishlist = async (req, res, next) => {
 exports.addToWishlist = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.productId);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
 
     let wishlist = await Wishlist.findOne({ user: req.user.id });
     if (!wishlist) {
@@ -49,7 +50,7 @@ exports.addToWishlist = async (req, res, next) => {
 exports.removeFromWishlist = async (req, res, next) => {
   try {
     const wishlist = await Wishlist.findOne({ user: req.user.id });
-    if (!wishlist) return res.status(404).json({ message: 'Wishlist not found' });
+    if (!wishlist) return next(new AppError(MESSAGES.WISHLIST_NOT_FOUND, 404));
 
     wishlist.products = wishlist.products.filter(
       (id) => id.toString() !== req.params.productId
@@ -67,7 +68,7 @@ exports.removeFromWishlist = async (req, res, next) => {
 exports.clearWishlist = async (req, res, next) => {
   try {
     const wishlist = await Wishlist.findOne({ user: req.user.id });
-    if (!wishlist) return res.status(404).json({ message: 'Wishlist not found' });
+    if (!wishlist) return next(new AppError(MESSAGES.WISHLIST_NOT_FOUND, 404));
 
     wishlist.products = [];
     await wishlist.save();

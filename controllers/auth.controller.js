@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const AppError = require('../utils/AppError');
+const { MESSAGES } = require('../utils/constants');
 
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -20,9 +22,9 @@ const generateRefreshToken = (id) => {
 const sendTokenResponse = (user, statusCode, res) => {
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
-  
+
   const options = {
-    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     httpOnly: true
   };
   if (process.env.NODE_ENV === 'production') {
@@ -36,31 +38,27 @@ const sendTokenResponse = (user, statusCode, res) => {
 exports.registerSendOtp = async (req, res, next) => {
   try {
     const { email, ...userData } = req.body;
-    
-    // Check if user already exists
-    const userExists = await User.findOne({ email });
-    if (userExists) return res.status(400).json({ message: 'User already exists' });
 
-    // Generate OTP
+    const userExists = await User.findOne({ email });
+    if (userExists) return next(new AppError(MESSAGES.USER_ALREADY_EXISTS, 400));
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
 
-    // Create OTP record
     await OTP.create({
       email,
       otp: hashedOtp,
-      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+      expiresAt: Date.now() + 10 * 60 * 1000,
       userData
     });
 
-    // Send email
     await sendEmail({
       email,
       subject: 'Your Registration OTP',
       message: `Your OTP is ${otp}. It is valid for 10 minutes.`
     });
 
-    res.status(200).json({ success: true, message: 'OTP sent to email' });
+    res.status(200).json({ success: true, message: MESSAGES.OTP_SENT });
   } catch (error) {
     next(error);
   }
@@ -72,16 +70,14 @@ exports.verifyOtp = async (req, res, next) => {
     const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
 
     const otpRecord = await OTP.findOne({ email, otp: hashedOtp, expiresAt: { $gt: Date.now() } });
-    if (!otpRecord) return res.status(400).json({ message: 'Invalid or expired OTP' });
+    if (!otpRecord) return next(new AppError(MESSAGES.INVALID_OTP, 400));
 
-    // Create user
     const user = await User.create({
       email,
       isVerified: true,
       ...otpRecord.userData
     });
 
-    // Delete OTP
     await OTP.deleteOne({ _id: otpRecord._id });
 
     sendTokenResponse(user, 201, res);
@@ -93,15 +89,15 @@ exports.verifyOtp = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Please provide email and password' });
+    if (!email || !password) return next(new AppError('Please provide email and password', 400));
 
     const user = await User.findOne({ email }).select('+password');
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+    if (!user) return next(new AppError(MESSAGES.INVALID_CREDENTIALS, 401));
 
-    if (!user.isVerified) return res.status(403).json({ message: 'Please verify your email first' });
+    if (!user.isVerified) return next(new AppError(MESSAGES.EMAIL_NOT_VERIFIED, 403));
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+    if (!isMatch) return next(new AppError(MESSAGES.INVALID_CREDENTIALS, 401));
 
     sendTokenResponse(user, 200, res);
   } catch (error) {
@@ -113,30 +109,26 @@ exports.refreshToken = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
-      return res.status(401).json({ message: 'No refresh token provided' });
+      return next(new AppError('No refresh token provided', 401));
     }
 
-    // Verify token
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     const user = await User.findById(decoded.id);
 
-    if (!user) {
-      return res.status(401).json({ message: 'User not found' });
-    }
+    if (!user) return next(new AppError(MESSAGES.USER_NOT_FOUND, 401));
 
     sendTokenResponse(user, 200, res);
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid or expired refresh token' });
+    return next(new AppError('Invalid or expired refresh token', 401));
   }
 };
-
 
 exports.logout = (req, res) => {
   res.cookie('refreshToken', 'none', {
     expires: new Date(Date.now() + 10 * 1000),
     httpOnly: true
   });
-  res.status(200).json({ success: true, message: 'Logged out successfully' });
+  res.status(200).json({ success: true, message: MESSAGES.LOGGED_OUT });
 };
 
 exports.forgotPassword = async (req, res, next) => {
@@ -144,10 +136,10 @@ exports.forgotPassword = async (req, res, next) => {
     const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(200).json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
+      // Intentionally vague to prevent email enumeration
+      return res.status(200).json({ success: true, message: MESSAGES.PASSWORD_RESET_SENT });
     }
 
-    // Generate token
     const resetToken = crypto.randomBytes(20).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
@@ -155,17 +147,16 @@ exports.forgotPassword = async (req, res, next) => {
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    // Read the frontend URL from environment variables, fallback to localhost for development
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
-    
+
     await sendEmail({
       email,
       subject: 'Password Reset Link',
       message: `You requested a password reset. Please click on the following link to reset your password: \n\n ${resetUrl}`
     });
 
-    res.status(200).json({ success: true, message: 'Password reset link sent to email' });
+    res.status(200).json({ success: true, message: MESSAGES.PASSWORD_RESET_SENT });
   } catch (error) {
     next(error);
   }
@@ -181,7 +172,7 @@ exports.resetPassword = async (req, res, next) => {
       resetPasswordExpire: { $gt: Date.now() }
     });
 
-    if (!user) return res.status(400).json({ message: 'Invalid or expired reset token' });
+    if (!user) return next(new AppError(MESSAGES.INVALID_RESET_TOKEN, 400));
 
     user.password = newPassword;
     user.resetPasswordToken = undefined;
@@ -203,16 +194,12 @@ exports.getMe = async (req, res, next) => {
 exports.changeRole = async (req, res, next) => {
   try {
     const { role } = req.body;
-    
-    // Check if user exists
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
 
-    // Prevent changing your own role to avoid locking out the only admin
+    const user = await User.findById(req.params.id);
+    if (!user) return next(new AppError(MESSAGES.USER_NOT_FOUND, 404));
+
     if (req.user.id === req.params.id) {
-      return res.status(400).json({ message: 'Cannot change your own role' });
+      return next(new AppError(MESSAGES.USER_CANNOT_CHANGE_OWN_ROLE, 400));
     }
 
     user.role = role;

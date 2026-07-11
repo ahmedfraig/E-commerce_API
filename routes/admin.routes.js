@@ -16,12 +16,15 @@ const router = express.Router();
 
 router.use(protect, authorize('admin'));
 
+// Static routes MUST come before dynamic /:id routes
 router.get('/dashboard', getDashboardStats);
+router.get('/carts', getAllCarts);
+router.get('/wishlists/stats', getWishlistStats);
+router.get('/wishlists', getAllWishlists);
 router.get('/', getAllOrders);
+
+// Dynamic routes at the bottom
 router.get('/:id', getOrderDetails);
 router.patch('/:id/status', validate(updateOrderStatusSchema), updateOrderStatus);
-router.get('/carts', getAllCarts);
-router.get('/wishlists', getAllWishlists);
-router.get('/wishlists/stats', getWishlistStats);
 
 module.exports = router;

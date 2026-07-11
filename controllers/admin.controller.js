@@ -4,6 +4,8 @@ const Wishlist = require('../models/Wishlist.model');
 const Product = require('../models/Product.model');
 const User = require('../models/User.model');
 const sendEmail = require('../utils/sendEmail');
+const AppError = require('../utils/AppError');
+const { MESSAGES } = require('../utils/constants');
 
 // @desc    Get Admin Dashboard Stats
 // @route   GET /admin/dashboard
@@ -92,7 +94,7 @@ exports.getAllOrders = async (req, res, next) => {
 exports.getOrderDetails = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id).populate('user', 'username email phone').lean();
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!order) return next(new AppError(MESSAGES.ORDER_NOT_FOUND, 404));
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
@@ -105,7 +107,7 @@ exports.updateOrderStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
     const order = await Order.findById(req.params.id).populate('user', 'email');
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!order) return next(new AppError(MESSAGES.ORDER_NOT_FOUND, 404));
 
     // Enforce valid status transitions
     const validTransitions = {
@@ -120,9 +122,7 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     const allowed = validTransitions[order.status];
     if (!allowed || !allowed.includes(status)) {
-      return res.status(400).json({
-        message: `Cannot transition order from "${order.status}" to "${status}"`
-      });
+      return next(new AppError(`Cannot transition order from "${order.status}" to "${status}"`, 400));
     }
 
     order.status = status;
