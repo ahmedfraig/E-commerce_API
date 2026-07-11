@@ -140,6 +140,8 @@ exports.createProduct = async (req, res, next) => {
   try {
     req.body.createdBy = req.user.id;
 
+    delete req.body.images;
+
     const product = new Product(req.body);
     const validationError = product.validateSync({ pathsToSkip: ['images'] });
     if (validationError) return next(validationError);
