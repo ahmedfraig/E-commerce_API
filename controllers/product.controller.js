@@ -254,7 +254,7 @@ exports.deleteProduct = async (req, res, next) => {
     product.isActive = false;
     await product.save();
 
-    res.status(200).json({ success: true, data: {} });
+    res.status(200).json({ success: true, message: MESSAGES.PRODUCT_DELETED, data: {} });
   } catch (error) {
     next(error);
   }

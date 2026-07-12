@@ -5,6 +5,7 @@ exports.MESSAGES = {
   PRODUCT_ALREADY_REVIEWED: 'Product already reviewed',
   PRODUCT_REVIEW_PURCHASE_REQUIRED: 'You must purchase and receive this product to review it',
   PRODUCT_IMAGE_UPLOAD_FAILED: 'Failed to upload one or more images. Upload transaction aborted.',
+  PRODUCT_DELETED: 'Product successfully deleted',
 
   // User
   USER_NOT_FOUND: 'User not found',
