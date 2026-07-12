@@ -39,7 +39,10 @@ exports.createProductSchema = Joi.object({
   }),
   subcategory: Joi.string().trim().optional(),
   brand: Joi.string().trim().optional(),
-  tags: Joi.string().trim().optional(),
+  tags: Joi.alternatives().try(
+    Joi.string().trim(),
+    Joi.array().items(Joi.string().trim())
+  ).optional(),
   featured: Joi.boolean().optional(),
   isActive: Joi.boolean().optional(),
   images: Joi.any().optional()
@@ -71,7 +74,10 @@ exports.updateProductSchema = Joi.object({
   category: Joi.string().trim().optional(),
   subcategory: Joi.string().trim().optional(),
   brand: Joi.string().trim().optional(),
-  tags: Joi.string().trim().optional(),
+  tags: Joi.alternatives().try(
+    Joi.string().trim(),
+    Joi.array().items(Joi.string().trim())
+  ).optional(),
   featured: Joi.boolean().optional(),
   isActive: Joi.boolean().optional(),
   images: Joi.any().optional(),

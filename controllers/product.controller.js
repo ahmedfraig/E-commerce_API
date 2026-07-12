@@ -142,6 +142,10 @@ exports.createProduct = async (req, res, next) => {
 
     delete req.body.images;
 
+    if (req.body.tags && typeof req.body.tags === 'string') {
+      req.body.tags = req.body.tags.split(',').map(tag => tag.trim()).filter(Boolean);
+    }
+
     if (req.body.sku) {
       const existingProduct = await Product.findOne({ sku: req.body.sku });
       if (existingProduct) {
@@ -182,7 +186,7 @@ exports.updateProduct = async (req, res, next) => {
       return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
     }
 
-    const { name, shortDescription, description, price, discountPrice, stock, sku, category, brand, isActive } = req.body;
+    const { name, shortDescription, description, price, discountPrice, stock, sku, category, brand, isActive, tags } = req.body;
 
     if (sku) {
       const existingProduct = await Product.findOne({ sku, _id: { $ne: req.params.id } });
@@ -204,6 +208,9 @@ exports.updateProduct = async (req, res, next) => {
     if (category) product.category = category;
     if (brand) product.brand = brand;
     if (isActive !== undefined) product.isActive = isActive;
+    if (tags !== undefined) {
+      product.tags = typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(Boolean) : tags;
+    }
 
     await product.validate();
 
