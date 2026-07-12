@@ -142,6 +142,13 @@ exports.createProduct = async (req, res, next) => {
 
     delete req.body.images;
 
+    if (req.body.sku) {
+      const existingProduct = await Product.findOne({ sku: req.body.sku });
+      if (existingProduct) {
+        return next(new AppError('A product with this SKU already exists', 400));
+      }
+    }
+
     const product = new Product(req.body);
     const validationError = product.validateSync({ pathsToSkip: ['images'] });
     if (validationError) return next(validationError);
@@ -175,7 +182,18 @@ exports.updateProduct = async (req, res, next) => {
       return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
     }
 
-    const { name, shortDescription, description, price, discountPrice, stock, category, brand, isActive } = req.body;
+    const { name, shortDescription, description, price, discountPrice, stock, sku, category, brand, isActive } = req.body;
+
+    if (sku) {
+      const existingProduct = await Product.findOne({ sku, _id: { $ne: req.params.id } });
+      if (existingProduct) {
+        if (req.files && req.files.length > 0) {
+          req.files.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
+        }
+        return next(new AppError('A product with this SKU already exists', 400));
+      }
+      product.sku = sku;
+    }
 
     if (name) product.name = name;
     if (shortDescription) product.shortDescription = shortDescription;

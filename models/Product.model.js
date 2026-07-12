@@ -44,7 +44,14 @@ const productSchema = new mongoose.Schema({
   },
   discountPrice: {
     type: Number,
-    default: 0
+    default: 0,
+    validate: {
+      validator: function(val) {
+        if (!val) return true;
+        return val < this.price;
+      },
+      message: 'Discount price must be less than the regular price'
+    }
   },
   stock: {
     type: Number,
@@ -52,7 +59,9 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
   sku: {
-    type: String
+    type: String,
+    unique: true,
+    sparse: true
   },
   images: {
     type: [{
