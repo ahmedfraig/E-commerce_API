@@ -1,7 +1,6 @@
 const Order = require('../models/Order.model');
 const Cart = require('../models/Cart.model');
 const Product = require('../models/Product.model');
-const Coupon = require('../models/Coupon.model');
 const mongoose = require('mongoose');
 const sendEmail = require('../utils/sendEmail');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -34,11 +33,13 @@ exports.createOrder = async (req, res, next) => {
       if (!product || !product.isActive) {
         throw new AppError(`Product "${item.name}" is no longer available`, 400);
       }
-
-      // Stock was already reserved at add-to-cart time — verify it's still valid
-      if (product.stock < 0) {
-        throw new AppError(`Stock inconsistency for "${item.name}". Please update your cart.`, 400);
+      if (product.stock < item.quantity) {
+        throw new AppError(`Insufficient stock for "${item.name}". Only ${product.stock} left`, 400);
       }
+
+      // Decrement stock at order time
+      product.stock -= item.quantity;
+      await product.save({ session });
 
       orderItems.push({
         product: item.product,
@@ -59,30 +60,10 @@ exports.createOrder = async (req, res, next) => {
       shippingFee,
       tax,
       discount,
+      couponCode: cart.coupon?.code || null,
       totalPrice,
       customerNote
     }], { session });
-
-    if (cart.coupon && cart.coupon.code) {
-      const updatedCoupon = await Coupon.findOneAndUpdate(
-        { 
-          code: cart.coupon.code,
-          isActive: true,
-          expiresAt: { $gt: Date.now() },
-          $or: [
-            { usageLimit: null },
-            { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
-          ],
-          minOrderAmount: { $lte: cart.subtotal }
-        },
-        { $inc: { usedCount: 1 } },
-        { session, new: true }
-      );
-
-      if (!updatedCoupon) {
-        throw new AppError('The applied coupon is invalid, expired, or no longer applicable. Please review your cart.', 400);
-      }
-    }
 
     cart.items = [];
     cart.coupon = undefined;
@@ -122,24 +103,6 @@ exports.createPaymentIntent = async (req, res, next) => {
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart || cart.items.length === 0) {
       return next(new AppError(MESSAGES.CART_EMPTY, 400));
-    }
-
-    // Validate coupon before calculating final price for Stripe
-    if (cart.coupon && cart.coupon.code) {
-      const coupon = await Coupon.findOne({
-        code: cart.coupon.code,
-        isActive: true,
-        expiresAt: { $gt: Date.now() },
-        $or: [
-          { usageLimit: null },
-          { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
-        ],
-        minOrderAmount: { $lte: cart.subtotal }
-      });
-
-      if (!coupon) {
-        return next(new AppError('The applied coupon is invalid or no longer applicable. Please review your cart.', 400));
-      }
     }
 
     const subtotal = cart.subtotal;
