@@ -34,13 +34,11 @@ exports.createOrder = async (req, res, next) => {
       if (!product || !product.isActive) {
         throw new AppError(`Product "${item.name}" is no longer available`, 400);
       }
-      if (product.stock < item.quantity) {
-        throw new AppError(`Insufficient stock for "${item.name}". Only ${product.stock} left`, 400);
-      }
 
-      // Decrement stock at order time (not at add-to-cart)
-      product.stock -= item.quantity;
-      await product.save({ session });
+      // Stock was already reserved at add-to-cart time — verify it's still valid
+      if (product.stock < 0) {
+        throw new AppError(`Stock inconsistency for "${item.name}". Please update your cart.`, 400);
+      }
 
       orderItems.push({
         product: item.product,
