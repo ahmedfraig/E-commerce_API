@@ -1,7 +1,8 @@
 const Joi = require('joi');
 
 exports.addItemToCartSchema = Joi.object({
-  productId: Joi.string().required().messages({
+  productId: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required().messages({
+    'string.pattern.base': 'Product ID must be a valid MongoDB ObjectId',
     'any.required': 'Product ID is required'
   }),
   quantity: Joi.number().integer().min(1).required().messages({
@@ -12,7 +13,8 @@ exports.addItemToCartSchema = Joi.object({
 });
 
 exports.updateItemQuantitySchema = Joi.object({
-  productId: Joi.string().required().messages({
+  productId: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required().messages({
+    'string.pattern.base': 'Product ID must be a valid MongoDB ObjectId',
     'any.required': 'Product ID is required'
   }),
   quantity: Joi.number().integer().min(1).required().messages({

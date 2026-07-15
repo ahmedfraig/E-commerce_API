@@ -39,9 +39,10 @@ cartSchema.virtual('discountAmount').get(function () {
   if (!this.coupon || !this.coupon.code) return 0;
   const subtotal = this.subtotal;
   if (this.coupon.discountType === 'percentage') {
-    return (subtotal * this.coupon.discountValue) / 100;
+    const discount = (subtotal * this.coupon.discountValue) / 100;
+    return Math.min(discount, subtotal);
   }
-  return this.coupon.discountValue; // fixed
+  return Math.min(this.coupon.discountValue, subtotal);
 });
 
 cartSchema.virtual('total').get(function () {

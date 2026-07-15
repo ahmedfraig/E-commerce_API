@@ -1,6 +1,7 @@
 const Order = require('../models/Order.model');
 const Cart = require('../models/Cart.model');
 const Product = require('../models/Product.model');
+const Coupon = require('../models/Coupon.model');
 const mongoose = require('mongoose');
 const sendEmail = require('../utils/sendEmail');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -36,6 +37,11 @@ exports.createOrder = async (req, res, next) => {
       if (product.stock < item.quantity) {
         throw new AppError(`Insufficient stock for "${item.name}". Only ${product.stock} left`, 400);
       }
+
+      // Decrement stock at order time (not at add-to-cart)
+      product.stock -= item.quantity;
+      await product.save({ session });
+
       orderItems.push({
         product: item.product,
         name: item.name,
@@ -59,12 +65,20 @@ exports.createOrder = async (req, res, next) => {
       customerNote
     }], { session });
 
+    // Increment coupon usedCount at order time
+    if (cart.coupon && cart.coupon.code) {
+      await Coupon.findOneAndUpdate(
+        { code: cart.coupon.code },
+        { $inc: { usedCount: 1 } },
+        { session }
+      );
+    }
+
     cart.items = [];
     cart.coupon = undefined;
     await cart.save({ session });
 
     await session.commitTransaction();
-    session.endSession();
 
     try {
       const emailMessage = `
@@ -85,8 +99,9 @@ exports.createOrder = async (req, res, next) => {
     res.status(201).json({ success: true, data: order[0] });
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
     next(error);
+  } finally {
+    session.endSession();
   }
 };
 
@@ -192,21 +207,21 @@ exports.cancelOrder = async (req, res, next) => {
     order.cancelledAt = Date.now();
     await order.save({ session });
 
-    await Promise.all(order.items.map(async (item) => {
-      const product = await Product.findById(item.product).session(session);
-      if (product) {
-        product.stock += item.quantity;
-        await product.save({ session });
-      }
-    }));
+    // Restore stock sequentially for session safety
+    for (const item of order.items) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { stock: item.quantity } },
+        { session }
+      );
+    }
 
     await session.commitTransaction();
-    session.endSession();
-
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
     next(error);
+  } finally {
+    session.endSession();
   }
 };
