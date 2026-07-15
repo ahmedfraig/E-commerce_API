@@ -63,13 +63,25 @@ exports.createOrder = async (req, res, next) => {
       customerNote
     }], { session });
 
-    // Increment coupon usedCount at order time
     if (cart.coupon && cart.coupon.code) {
-      await Coupon.findOneAndUpdate(
-        { code: cart.coupon.code },
+      const updatedCoupon = await Coupon.findOneAndUpdate(
+        { 
+          code: cart.coupon.code,
+          isActive: true,
+          expiresAt: { $gt: Date.now() },
+          $or: [
+            { usageLimit: null },
+            { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
+          ],
+          minOrderAmount: { $lte: cart.subtotal }
+        },
         { $inc: { usedCount: 1 } },
-        { session }
+        { session, new: true }
       );
+
+      if (!updatedCoupon) {
+        throw new AppError('The applied coupon is invalid, expired, or no longer applicable. Please review your cart.', 400);
+      }
     }
 
     cart.items = [];
@@ -110,6 +122,24 @@ exports.createPaymentIntent = async (req, res, next) => {
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart || cart.items.length === 0) {
       return next(new AppError(MESSAGES.CART_EMPTY, 400));
+    }
+
+    // Validate coupon before calculating final price for Stripe
+    if (cart.coupon && cart.coupon.code) {
+      const coupon = await Coupon.findOne({
+        code: cart.coupon.code,
+        isActive: true,
+        expiresAt: { $gt: Date.now() },
+        $or: [
+          { usageLimit: null },
+          { $expr: { $lt: ["$usedCount", "$usageLimit"] } }
+        ],
+        minOrderAmount: { $lte: cart.subtotal }
+      });
+
+      if (!coupon) {
+        return next(new AppError('The applied coupon is invalid or no longer applicable. Please review your cart.', 400));
+      }
     }
 
     const subtotal = cart.subtotal;

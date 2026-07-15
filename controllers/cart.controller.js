@@ -48,6 +48,7 @@ exports.addItemToCart = async (req, res, next) => {
       const newTotal = cart.items[existingItemIndex].quantity + Number(quantity);
       if (product.stock < Number(quantity)) throw new AppError(MESSAGES.NOT_ENOUGH_STOCK, 400);
       cart.items[existingItemIndex].quantity = newTotal;
+      cart.items[existingItemIndex].price = product.discountPrice > 0 ? product.discountPrice : product.price;
     } else {
       if (product.stock < Number(quantity)) throw new AppError(MESSAGES.NOT_ENOUGH_STOCK, 400);
       cart.items.push({
@@ -88,6 +89,7 @@ exports.updateItemQuantity = async (req, res, next) => {
 
     const product = await Product.findById(productId).session(session);
     if (!product) throw new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404);
+    if (!product.isActive) throw new AppError('This product is no longer available', 400);
 
     const oldQuantity = cart.items[itemIndex].quantity;
     const difference = Number(quantity) - oldQuantity;
@@ -97,6 +99,8 @@ exports.updateItemQuantity = async (req, res, next) => {
     }
 
     cart.items[itemIndex].quantity = Number(quantity);
+    // Refresh the price to match current DB price
+    cart.items[itemIndex].price = product.discountPrice > 0 ? product.discountPrice : product.price;
     product.stock -= difference;
 
     await product.save({ session });
