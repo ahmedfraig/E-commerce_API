@@ -45,7 +45,6 @@ exports.addItemToCart = async (req, res, next) => {
       const newTotal = cart.items[existingItemIndex].quantity + Number(quantity);
       if (product.stock < newTotal) throw new AppError(MESSAGES.NOT_ENOUGH_STOCK, 400);
       cart.items[existingItemIndex].quantity = newTotal;
-      // Refresh the price to match current DB price
       cart.items[existingItemIndex].price = product.discountPrice > 0 ? product.discountPrice : product.price;
     } else {
       if (product.stock < Number(quantity)) throw new AppError(MESSAGES.NOT_ENOUGH_STOCK, 400);
@@ -86,7 +85,6 @@ exports.updateItemQuantity = async (req, res, next) => {
     }
 
     cart.items[itemIndex].quantity = Number(quantity);
-    // Refresh the price to match current DB price
     cart.items[itemIndex].price = product.discountPrice > 0 ? product.discountPrice : product.price;
 
     await cart.save();
@@ -135,7 +133,6 @@ exports.applyCoupon = async (req, res, next) => {
       return next(new AppError('Add items to your cart before applying a coupon.', 400));
     }
 
-    // Prevent stacking — must remove existing coupon first
     if (cart.coupon && cart.coupon.code) {
       return next(new AppError('A coupon is already applied. Remove it first.', 400));
     }
