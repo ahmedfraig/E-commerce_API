@@ -39,7 +39,6 @@ exports.addToWishlist = async (req, res, next) => {
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
     if (!product.isActive) return next(new AppError('This product is no longer available', 400));
 
-    // Use $addToSet for atomic, duplicate-free insertion. upsert: true handles new wishlists automatically.
     const wishlist = await Wishlist.findOneAndUpdate(
       { user: req.user.id },
       { $addToSet: { products: req.params.productId } },
@@ -56,7 +55,6 @@ exports.addToWishlist = async (req, res, next) => {
 // @route   DELETE /wishlists/remove/:productId
 exports.removeFromWishlist = async (req, res, next) => {
   try {
-    // Use atomic $pull to safely remove the product without race conditions
     const wishlist = await Wishlist.findOneAndUpdate(
       { user: req.user.id },
       { $pull: { products: req.params.productId } },
