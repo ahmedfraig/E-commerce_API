@@ -177,6 +177,8 @@ exports.createProduct = async (req, res, next) => {
 // @desc    Update product
 // @route   PUT /products/update/:id
 exports.updateProduct = async (req, res, next) => {
+  // Track uploaded Cloudinary images so we can roll them back on any error
+  let newImages = [];
   try {
     let product = await Product.findById(req.params.id);
     if (!product) {
@@ -202,7 +204,7 @@ exports.updateProduct = async (req, res, next) => {
     if (name) product.name = name;
     if (shortDescription) product.shortDescription = shortDescription;
     if (description) product.description = description;
-    if (price) product.price = price;
+    if (price !== undefined) product.price = price;
     if (discountPrice !== undefined) product.discountPrice = discountPrice;
     if (stock !== undefined) product.stock = stock;
     if (category) product.category = category;
@@ -214,13 +216,18 @@ exports.updateProduct = async (req, res, next) => {
 
     await product.validate();
 
-    let newImages = [];
     if (req.files && req.files.length > 0) {
       newImages = await uploadImages(req.files);
     }
 
     if (req.body.deletedImages) {
-      const deletedImages = JSON.parse(req.body.deletedImages);
+      let deletedImages;
+      try {
+        deletedImages = JSON.parse(req.body.deletedImages);
+      } catch {
+        throw new AppError('deletedImages must be a valid JSON array of public_ids', 400);
+      }
+
       const productPublicIds = product.images.map(img => img.public_id);
       const validDeletedImages = deletedImages.filter(id => productPublicIds.includes(id));
 
@@ -237,6 +244,10 @@ exports.updateProduct = async (req, res, next) => {
     await product.save();
     res.status(200).json({ success: true, data: product });
   } catch (error) {
+    //Roll back any Cloudinary images that were uploaded before the error occurred
+    if (newImages.length > 0) {
+      await Promise.allSettled(newImages.map(img => cloudinary.uploader.destroy(img.public_id)));
+    }
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
     }

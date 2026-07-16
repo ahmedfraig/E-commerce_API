@@ -121,6 +121,9 @@ exports.createPaymentIntent = async (req, res, next) => {
     if (order.paymentStatus === 'paid') {
       return next(new AppError('This order has already been paid', 400));
     }
+    if (order.status === 'cancelled') {
+      return next(new AppError('Cannot pay for a cancelled order', 400));
+    }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(order.totalPrice * 100),
@@ -157,21 +160,41 @@ exports.stripeWebhook = async (req, res) => {
     const paymentIntent = event.data.object;
     const { orderId } = paymentIntent.metadata;
 
-    await Order.findByIdAndUpdate(orderId, {
-      paymentStatus: 'paid',
-      paidAt: Date.now(),
-      status: 'confirmed',
-      transactionId: paymentIntent.id
-    });
+    if (orderId) {
+      const order = await Order.findById(orderId);
+      if (order) {
+        if (order.status === 'cancelled') {
+          // Race condition: User cancelled the order while the Stripe checkout tab was open, 
+          // and then paid for it. We must refund them immediately so they don't lose money 
+          // on an order that already had its stock restored.
+          try {
+            await stripe.refunds.create({ payment_intent: paymentIntent.id });
+            order.paymentStatus = 'refunded';
+            order.transactionId = paymentIntent.id;
+            await order.save();
+          } catch (err) {
+            console.error('Failed to automatically refund cancelled order:', err);
+          }
+        } else {
+          order.paymentStatus = 'paid';
+          order.paidAt = Date.now();
+          order.status = 'confirmed';
+          order.transactionId = paymentIntent.id;
+          await order.save();
+        }
+      }
+    }
   }
 
   if (event.type === 'payment_intent.payment_failed') {
     const paymentIntent = event.data.object;
     const { orderId } = paymentIntent.metadata;
 
-    await Order.findByIdAndUpdate(orderId, {
-      paymentStatus: 'failed'
-    });
+    if (orderId) {
+      await Order.findByIdAndUpdate(orderId, {
+        paymentStatus: 'failed'
+      });
+    }
   }
 
   res.status(200).json({ received: true });
@@ -183,6 +206,7 @@ exports.getMyOrders = async (req, res, next) => {
   try {
     const { status, page = 1 } = req.query;
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
+    const pageNum = parseInt(page, 10) || 1;
 
     if (status && !VALID_ORDER_STATUSES.includes(status)) {
       return next(new AppError(`Invalid status. Must be one of: ${VALID_ORDER_STATUSES.join(', ')}`, 400));
@@ -191,7 +215,7 @@ exports.getMyOrders = async (req, res, next) => {
     let query = { user: req.user.id };
     if (status) query.status = status;
 
-    const skip = (page - 1) * limit;
+    const skip = (pageNum - 1) * limit;
     const [orders, total] = await Promise.all([
       Order.find(query).skip(skip).limit(Number(limit)).sort('-createdAt').lean(),
       Order.countDocuments(query)
@@ -226,6 +250,18 @@ exports.cancelOrder = async (req, res, next) => {
     if (!order) throw new AppError(MESSAGES.ORDER_NOT_FOUND, 404);
     if (order.status !== 'pending' && order.status !== 'confirmed') {
       throw new AppError(MESSAGES.CANNOT_CANCEL_ORDER, 400);
+    }
+    
+    if (order.paymentStatus === 'paid') {
+      if (order.paymentMethod === 'stripe' && order.transactionId) {
+        // Issue automatic refund via Stripe
+        await stripe.refunds.create({
+          payment_intent: order.transactionId
+        });
+        order.paymentStatus = 'refunded';
+      } else {
+        throw new AppError('You cannot cancel an order that has already been paid via this method. Please contact support.', 400);
+      }
     }
 
     order.status = 'cancelled';
