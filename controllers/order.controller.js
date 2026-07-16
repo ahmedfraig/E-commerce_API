@@ -7,6 +7,8 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
 
+const VALID_ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
+
 // @desc    Create a new order
 // @route   POST /orders
 exports.createOrder = async (req, res, next) => {
@@ -20,35 +22,42 @@ exports.createOrder = async (req, res, next) => {
       throw new AppError(MESSAGES.CART_EMPTY, 400);
     }
 
-    const subtotal = cart.subtotal;
-    const shippingFee = subtotal >= 1000 ? 0 : 50;
-    const tax = subtotal * 0.14;
-    const discount = cart.discountAmount;
-    const totalPrice = subtotal + shippingFee + tax - discount;
-
     const orderItems = [];
+    let freshSubtotal = 0;
 
     for (const item of cart.items) {
-      const product = await Product.findById(item.product).session(session);
-      if (!product || !product.isActive) {
-        throw new AppError(`Product "${item.name}" is no longer available`, 400);
-      }
-      if (product.stock < item.quantity) {
-        throw new AppError(`Insufficient stock for "${item.name}". Only ${product.stock} left`, 400);
+      const product = await Product.findOneAndUpdate(
+        { _id: item.product, isActive: true, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity } },
+        { session, new: true }
+      );
+      if (!product) {
+        throw new AppError(`"${item.name}" is unavailable or out of stock`, 400);
       }
 
-      // Decrement stock at order time
-      product.stock -= item.quantity;
-      await product.save({ session });
+      const freshPrice = product.discountPrice > 0 ? product.discountPrice : product.price;
+      freshSubtotal += freshPrice * item.quantity;
 
       orderItems.push({
         product: item.product,
         name: item.name,
         image: item.image,
-        price: item.price,
+        price: freshPrice,
         quantity: item.quantity
       });
     }
+
+    let discount = 0;
+    if (cart.coupon && cart.coupon.code) {
+      if (cart.coupon.discountType === 'percentage') {
+        discount = Math.min((freshSubtotal * cart.coupon.discountValue) / 100, freshSubtotal);
+      } else {
+        discount = Math.min(cart.coupon.discountValue, freshSubtotal);
+      }
+    }
+    const shippingFee = freshSubtotal >= 1000 ? 0 : 50;
+    const tax = freshSubtotal * 0.14;
+    const totalPrice = freshSubtotal + shippingFee + tax - discount;
 
     const order = await Order.create([{
       user: req.user.id,
@@ -56,7 +65,7 @@ exports.createOrder = async (req, res, next) => {
       shippingAddress,
       paymentMethod: paymentMethod || 'cash',
       paymentStatus: 'pending',
-      subtotal,
+      subtotal: freshSubtotal,
       shippingFee,
       tax,
       discount,
@@ -75,7 +84,7 @@ exports.createOrder = async (req, res, next) => {
       const emailMessage = `
         Thank you for your order!
         Order ID: ${order[0]._id}
-        Total Price: $${order[0].totalPrice}
+        Total Price: $${order[0].totalPrice.toFixed(2)}
         We will notify you once it ships.
       `;
       await sendEmail({
@@ -100,21 +109,26 @@ exports.createOrder = async (req, res, next) => {
 // @route   POST /orders/create-payment-intent
 exports.createPaymentIntent = async (req, res, next) => {
   try {
-    const cart = await Cart.findOne({ user: req.user.id });
-    if (!cart || cart.items.length === 0) {
-      return next(new AppError(MESSAGES.CART_EMPTY, 400));
+    const { orderId } = req.body;
+    if (!orderId) return next(new AppError('orderId is required', 400));
+
+    const order = await Order.findOne({ _id: orderId, user: req.user.id });
+    if (!order) return next(new AppError(MESSAGES.ORDER_NOT_FOUND, 404));
+
+    if (order.paymentMethod !== 'stripe') {
+      return next(new AppError('This order does not use Stripe as the payment method', 400));
+    }
+    if (order.paymentStatus === 'paid') {
+      return next(new AppError('This order has already been paid', 400));
     }
 
-    const subtotal = cart.subtotal;
-    const shippingFee = subtotal >= 1000 ? 0 : 50;
-    const tax = subtotal * 0.14;
-    const discount = cart.discountAmount;
-    const totalPrice = subtotal + shippingFee + tax - discount;
-
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(totalPrice * 100),
+      amount: Math.round(order.totalPrice * 100),
       currency: 'usd',
-      metadata: { userId: req.user.id.toString() }
+      metadata: {
+        userId: req.user.id.toString(),
+        orderId: orderId.toString()
+      }
     });
 
     res.status(200).json({
@@ -141,7 +155,23 @@ exports.stripeWebhook = async (req, res) => {
 
   if (event.type === 'payment_intent.succeeded') {
     const paymentIntent = event.data.object;
-    console.log('Payment succeeded for User ID:', paymentIntent.metadata.userId);
+    const { orderId } = paymentIntent.metadata;
+
+    await Order.findByIdAndUpdate(orderId, {
+      paymentStatus: 'paid',
+      paidAt: Date.now(),
+      status: 'confirmed',
+      transactionId: paymentIntent.id
+    });
+  }
+
+  if (event.type === 'payment_intent.payment_failed') {
+    const paymentIntent = event.data.object;
+    const { orderId } = paymentIntent.metadata;
+
+    await Order.findByIdAndUpdate(orderId, {
+      paymentStatus: 'failed'
+    });
   }
 
   res.status(200).json({ received: true });
@@ -153,8 +183,12 @@ exports.getMyOrders = async (req, res, next) => {
   try {
     const { status, page = 1 } = req.query;
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
-    let query = { user: req.user.id };
 
+    if (status && !VALID_ORDER_STATUSES.includes(status)) {
+      return next(new AppError(`Invalid status. Must be one of: ${VALID_ORDER_STATUSES.join(', ')}`, 400));
+    }
+
+    let query = { user: req.user.id };
     if (status) query.status = status;
 
     const skip = (page - 1) * limit;
