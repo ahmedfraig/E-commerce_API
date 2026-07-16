@@ -121,13 +121,19 @@ exports.removeItem = async (req, res, next) => {
 exports.applyCoupon = async (req, res, next) => {
   try {
     const { code } = req.body;
-    const upperCode = code.toUpperCase();
+    if (!code || typeof code !== 'string') return next(new AppError('Please provide a valid coupon code.', 400));
+    const upperCode = code.trim().toUpperCase();
+    if (!upperCode) return next(new AppError('Please provide a valid coupon code.', 400));
 
     const coupon = AVAILABLE_COUPONS[upperCode];
     if (!coupon) return next(new AppError(MESSAGES.INVALID_COUPON, 400));
 
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) return next(new AppError(MESSAGES.CART_NOT_FOUND, 404));
+
+    if (cart.items.length === 0) {
+      return next(new AppError('Add items to your cart before applying a coupon.', 400));
+    }
 
     // Prevent stacking — must remove existing coupon first
     if (cart.coupon && cart.coupon.code) {
@@ -154,6 +160,10 @@ exports.removeCoupon = async (req, res, next) => {
   try {
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) return next(new AppError(MESSAGES.CART_NOT_FOUND, 404));
+
+    if (!cart.coupon || !cart.coupon.code) {
+      return next(new AppError('No coupon is currently applied to your cart.', 400));
+    }
 
     cart.coupon = undefined;
     await cart.save();
