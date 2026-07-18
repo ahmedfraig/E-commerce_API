@@ -28,6 +28,8 @@ exports.getDashboardStats = async (req, res, next) => {
       lastMonthRevenueAgg,
       ordersByStatus,
       totalCustomers,
+      totalAdmins,
+      totalProducts,
       topProducts,
       dailyRevenue,
       recentOrders
@@ -53,6 +55,10 @@ exports.getDashboardStats = async (req, res, next) => {
       ]),
       // Total customers
       User.countDocuments({ role: 'customer' }),
+      // Total admins
+      User.countDocuments({ role: 'admin' }),
+      // Total products
+      Product.countDocuments(),
       // Top products by sales
       Order.aggregate([
         { $match: { status: { $ne: 'cancelled' } } },
@@ -120,7 +126,9 @@ exports.getDashboardStats = async (req, res, next) => {
         topProducts,
         ordersByStatus,
         dailyRevenue,
-        totalCustomers
+        totalCustomers,
+        totalAdmins,
+        totalProducts
       }
     });
   } catch (error) {
