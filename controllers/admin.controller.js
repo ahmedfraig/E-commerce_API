@@ -4,6 +4,7 @@ const Wishlist = require('../models/Wishlist.model');
 const Product = require('../models/Product.model');
 const User = require('../models/User.model');
 const sendEmail = require('../utils/sendEmail');
+const { orderStatusUpdateEmail } = require('../utils/emailTemplates');
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
 
@@ -83,7 +84,7 @@ exports.getDashboardStats = async (req, res, next) => {
       // Recent orders
       Order.find()
         .sort('-createdAt')
-        .limit(10)
+        .limit(5)
         .populate('user', 'username email')
         .lean()
     ]);
@@ -222,10 +223,11 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     // Send automated email
     try {
+      const { subject, html } = orderStatusUpdateEmail(order, status);
       await sendEmail({
         email: order.user.email,
-        subject: 'Order Status Update',
-        message: `Your order ${order._id} status is now: ${status}.`
+        subject,
+        html
       });
     } catch (err) {
       console.log('Email could not be sent', err);

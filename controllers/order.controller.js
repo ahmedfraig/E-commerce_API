@@ -3,6 +3,7 @@ const Cart = require('../models/Cart.model');
 const Product = require('../models/Product.model');
 const mongoose = require('mongoose');
 const sendEmail = require('../utils/sendEmail');
+const { orderConfirmationEmail } = require('../utils/emailTemplates');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
@@ -81,16 +82,11 @@ exports.createOrder = async (req, res, next) => {
     await session.commitTransaction();
 
     try {
-      const emailMessage = `
-        Thank you for your order!
-        Order ID: ${order[0]._id}
-        Total Price: $${order[0].totalPrice.toFixed(2)}
-        We will notify you once it ships.
-      `;
+      const { subject, html } = orderConfirmationEmail(order[0]);
       await sendEmail({
         email: req.user.email,
-        subject: 'Order Confirmation',
-        message: emailMessage
+        subject,
+        html
       });
     } catch (err) {
       console.error('Order confirmation email could not be sent', err);
