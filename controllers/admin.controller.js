@@ -11,44 +11,115 @@ const { MESSAGES } = require('../utils/constants');
 // @route   GET /admin/dashboard
 exports.getDashboardStats = async (req, res, next) => {
   try {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 7);
 
-    const [totalRevenue, orderCounts, totalCustomers, topProducts, dailyRevenue, lowStockProducts] = await Promise.all([
+    // Current month boundaries
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Last month boundaries
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+    const [
+      totalRevenueAgg,
+      thisMonthRevenueAgg,
+      lastMonthRevenueAgg,
+      ordersByStatus,
+      totalCustomers,
+      topProducts,
+      dailyRevenue,
+      recentOrders
+    ] = await Promise.all([
+      // Total revenue (excluding cancelled)
       Order.aggregate([
         { $match: { status: { $ne: 'cancelled' } } },
         { $group: { _id: null, total: { $sum: '$totalPrice' } } }
       ]),
-      Order.countDocuments(),
-      User.countDocuments({ role: 'customer' }),
+      // This month revenue
       Order.aggregate([
+        { $match: { createdAt: { $gte: thisMonthStart }, status: { $ne: 'cancelled' } } },
+        { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+      ]),
+      // Last month revenue
+      Order.aggregate([
+        { $match: { createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd }, status: { $ne: 'cancelled' } } },
+        { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+      ]),
+      // Orders grouped by status
+      Order.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+      // Total customers
+      User.countDocuments({ role: 'customer' }),
+      // Top products by sales
+      Order.aggregate([
+        { $match: { status: { $ne: 'cancelled' } } },
         { $unwind: '$items' },
-        { $group: { _id: '$items.product', name: { $first: '$items.name' }, sold: { $sum: '$items.quantity' } } },
-        { $sort: { sold: -1 } },
+        {
+          $group: {
+            _id: '$items.product',
+            name: { $first: '$items.name' },
+            image: { $first: '$items.image' },
+            totalSold: { $sum: '$items.quantity' },
+            revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
+          }
+        },
+        { $sort: { totalSold: -1 } },
         { $limit: 5 }
       ]),
+      // Daily revenue (last 7 days)
       Order.aggregate([
         { $match: { createdAt: { $gte: sevenDaysAgo }, status: { $ne: 'cancelled' } } },
         {
           $group: {
             _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-            revenue: { $sum: '$totalPrice' }
+            revenue: { $sum: '$totalPrice' },
+            orders: { $sum: 1 }
           }
         },
         { $sort: { _id: 1 } }
       ]),
-      Product.find({ isActive: true, stock: { $lte: 10 } }).select('name stock').sort('stock').limit(10).lean()
+      // Recent orders
+      Order.find()
+        .sort('-createdAt')
+        .limit(10)
+        .populate('user', 'username email')
+        .lean()
     ]);
+
+    // Build orders breakdown from aggregation
+    const statusList = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const orders = { total: 0 };
+    statusList.forEach(s => { orders[s] = 0; });
+    ordersByStatus.forEach(({ _id, count }) => {
+      orders[_id] = count;
+      orders.total += count;
+    });
+
+    // Revenue calculations
+    const totalRev = totalRevenueAgg[0]?.total || 0;
+    const thisMonthRev = thisMonthRevenueAgg[0]?.total || 0;
+    const lastMonthRev = lastMonthRevenueAgg[0]?.total || 0;
+    const growthPercent = lastMonthRev > 0
+      ? Math.round(((thisMonthRev - lastMonthRev) / lastMonthRev) * 100)
+      : 0;
 
     res.status(200).json({
       success: true,
-      data: {
-        revenue: totalRevenue[0] ? totalRevenue[0].total : 0,
-        orderCounts,
-        totalCustomers,
+      dashboard: {
+        orders,
+        revenue: {
+          total: totalRev,
+          thisMonth: thisMonthRev,
+          lastMonth: lastMonthRev,
+          growthPercent
+        },
+        recentOrders,
         topProducts,
+        ordersByStatus,
         dailyRevenue,
-        lowStockProducts
+        totalCustomers
       }
     });
   } catch (error) {
@@ -60,7 +131,8 @@ exports.getDashboardStats = async (req, res, next) => {
 // @route   GET /admin/orders
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const { status, paymentMethod, startDate, endDate, sort, page = 1 } = req.query;
+    const { status, paymentMethod, startDate, endDate, sort } = req.query;
+    const page = parseInt(req.query.page, 10) || 1;
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
     let query = {};
 
@@ -69,7 +141,11 @@ exports.getAllOrders = async (req, res, next) => {
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
     }
 
     let queryBuilder = Order.find(query).populate('user', 'username email');
@@ -127,7 +203,21 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     order.status = status;
     if (status === 'delivered') order.deliveredAt = Date.now();
-    if (status === 'cancelled') order.cancelledAt = Date.now();
+
+    if (status === 'cancelled') {
+      order.cancelledAt = Date.now();
+
+      // Restore stock for each item
+      for (const item of order.items) {
+        await Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } });
+      }
+
+      // Mark payment as refunded if already paid
+      if (order.paymentStatus === 'paid') {
+        order.paymentStatus = 'refunded';
+      }
+    }
+
     await order.save();
 
     // Send automated email
@@ -176,7 +266,7 @@ exports.getAllCarts = async (req, res, next) => {
 // @route   GET /admin/wishlists
 exports.getAllWishlists = async (req, res, next) => {
   try {
-    const { page = 1 } = req.query;
+    const page = parseInt(req.query.page, 10) || 1;
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
     const skip = (page - 1) * limit;
 

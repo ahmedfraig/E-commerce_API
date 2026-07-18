@@ -1,19 +1,19 @@
 const AppError = require('../utils/AppError');
 
-const validate = (schema) => {
+const validate = (schema, source = 'body') => {
   return (req, res, next) => {
-    if (!req.body || typeof req.body !== 'object') {
-      req.body = {};
+    if (!req[source] || typeof req[source] !== 'object') {
+      req[source] = {};
     }
 
-    const { error, value } = schema.validate(req.body, { abortEarly: false });
+    const { error, value } = schema.validate(req[source], { abortEarly: false });
 
     if (error) {
       const message = error.details.map(detail => detail.message.replace(/"/g, '')).join(', ');
       return next(new AppError(message, 400));
     }
 
-    req.body = value;
+    req[source] = value;
     next();
   };
 };
