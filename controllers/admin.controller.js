@@ -123,6 +123,19 @@ exports.getDashboardStats = async (req, res, next) => {
       ? Math.round(((thisMonthRev - lastMonthRev) / lastMonthRev) * 100)
       : 0;
 
+    const formattedDailyRevenue = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const dateString = d.toISOString().split('T')[0];
+      const existingDay = dailyRevenue.find(item => item._id === dateString);
+      formattedDailyRevenue.push({
+        _id: dateString,
+        revenue: existingDay ? existingDay.revenue : 0,
+        orders: existingDay ? existingDay.orders : 0
+      });
+    }
+
     res.status(200).json({
       success: true,
       dashboard: {
@@ -136,7 +149,7 @@ exports.getDashboardStats = async (req, res, next) => {
         recentOrders,
         topProducts,
         ordersByStatus,
-        dailyRevenue,
+        dailyRevenue: formattedDailyRevenue,
         totalCustomers,
         totalAdmins,
         totalProducts

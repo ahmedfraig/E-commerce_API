@@ -13,7 +13,8 @@ exports.createOrder = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { shippingAddress, paymentMethod, customerNote } = req.body;
+    const { shippingAddress, customerNote } = req.body;
+    const paymentMethod = req.body.paymentMethod || 'cash';
 
     const cart = await Cart.findOne({ user: req.user.id }).session(session);
     if (!cart || cart.items.length === 0) {
@@ -24,11 +25,18 @@ exports.createOrder = async (req, res, next) => {
     let freshSubtotal = 0;
 
     for (const item of cart.items) {
-      const product = await Product.findOneAndUpdate(
-        { _id: item.product, isActive: true, stock: { $gte: item.quantity } },
-        { $inc: { stock: -item.quantity } },
-        { session, new: true }
-      );
+      let product;
+      if (paymentMethod === 'cash') {
+        product = await Product.findOneAndUpdate(
+          { _id: item.product, isActive: true, stock: { $gte: item.quantity } },
+          { $inc: { stock: -item.quantity } },
+          { session, new: true }
+        );
+      } else {
+        product = await Product.findOne(
+          { _id: item.product, isActive: true, stock: { $gte: item.quantity } }
+        ).session(session);
+      }
       if (!product) {
         throw new AppError(`"${item.name}" is unavailable or out of stock`, 400);
       }
@@ -143,48 +151,107 @@ exports.stripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type === 'payment_intent.succeeded') {
-    const paymentIntent = event.data.object;
-    const { orderId } = paymentIntent.metadata;
+  try {
+    if (event.type === 'payment_intent.succeeded') {
+      const paymentIntent = event.data.object;
+      const { orderId } = paymentIntent.metadata;
 
-    if (orderId) {
-      const order = await Order.findById(orderId);
-      if (order) {
-        if (order.status === 'cancelled') {
-          // Race condition: User cancelled the order while the Stripe checkout tab was open, 
-          // and then paid for it. We must refund them immediately so they don't lose money 
-          // on an order that already had its stock restored.
-          try {
-            await stripe.refunds.create({ payment_intent: paymentIntent.id });
-            order.paymentStatus = 'refunded';
-            order.transactionId = paymentIntent.id;
-            await order.save();
-          } catch (err) {
-            console.error('Failed to automatically refund cancelled order:', err);
+      if (orderId) {
+        const order = await Order.findById(orderId);
+        if (order) {
+          if (order.status === 'cancelled') {
+            // Race condition: User cancelled the order while the Stripe checkout tab was open, 
+            // and then paid for it. We must refund them immediately so they don't lose money 
+            // on an order that already had its stock restored.
+            if (order.paymentStatus !== 'refunded') {
+              try {
+                await stripe.refunds.create({ payment_intent: paymentIntent.id });
+                order.paymentStatus = 'refunded';
+                order.transactionId = paymentIntent.id;
+                await order.save();
+              } catch (err) {
+                console.error('Failed to automatically refund cancelled order:', err);
+                throw err;
+              }
+            }
+          } else if (order.paymentStatus !== 'paid') {
+            const session = await mongoose.startSession();
+            session.startTransaction();
+            try {
+              let stockAvailable = true;
+              let outOfStockItem = '';
+              
+              for (const item of order.items) {
+                const product = await Product.findOne({ _id: item.product, stock: { $gte: item.quantity } }).session(session);
+                if (!product) {
+                  stockAvailable = false;
+                  outOfStockItem = item.name;
+                  break;
+                }
+              }
+
+              if (!stockAvailable) {
+                // Overselling occurred
+                await stripe.refunds.create({ payment_intent: paymentIntent.id });
+                order.paymentStatus = 'refunded';
+                order.status = 'cancelled';
+                order.cancelledAt = Date.now();
+                order.adminNote = `Auto-refunded: ${outOfStockItem} went out of stock before payment completed.`;
+                await order.save({ session });
+              } else {
+                for (const item of order.items) {
+                  await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } }, { session });
+                }
+                order.paymentStatus = 'paid';
+                order.paidAt = Date.now();
+                order.status = 'confirmed';
+                order.transactionId = paymentIntent.id;
+                await order.save({ session });
+              }
+              await session.commitTransaction();
+            } catch (err) {
+              await session.abortTransaction();
+              throw err;
+            } finally {
+              session.endSession();
+            }
           }
-        } else {
-          order.paymentStatus = 'paid';
-          order.paidAt = Date.now();
-          order.status = 'confirmed';
-          order.transactionId = paymentIntent.id;
-          await order.save();
         }
       }
     }
-  }
 
-  if (event.type === 'payment_intent.payment_failed') {
-    const paymentIntent = event.data.object;
-    const { orderId } = paymentIntent.metadata;
+    if (event.type === 'payment_intent.payment_failed' || event.type === 'payment_intent.canceled') {
+      const paymentIntent = event.data.object;
+      const { orderId } = paymentIntent.metadata;
 
-    if (orderId) {
-      await Order.findByIdAndUpdate(orderId, {
-        paymentStatus: 'failed'
-      });
+      if (orderId) {
+        const order = await Order.findById(orderId);
+        if (order && order.status !== 'cancelled') {
+          const session = await mongoose.startSession();
+          session.startTransaction();
+          try {
+            order.paymentStatus = 'failed';
+            order.status = 'cancelled';
+            order.cancelledAt = Date.now();
+            await order.save({ session });
+            
+            await session.commitTransaction();
+            } catch (error) {
+            await session.abortTransaction();
+            console.error('Failed to cancel order on payment failure:', error);
+            throw error;
+          } finally {
+            session.endSession();
+          }
+        }
+      }
     }
-  }
 
-  res.status(200).json({ received: true });
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Stripe Webhook Processing Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 };
 exports.getMyOrders = async (req, res, next) => {
   try {
@@ -230,9 +297,10 @@ exports.cancelOrder = async (req, res, next) => {
       throw new AppError(MESSAGES.CANNOT_CANCEL_ORDER, 400);
     }
     
+    const shouldRestoreStock = order.paymentMethod === 'cash' || order.paymentStatus === 'paid';
+
     if (order.paymentStatus === 'paid') {
       if (order.paymentMethod === 'stripe' && order.transactionId) {
-        // Issue automatic refund via Stripe
         await stripe.refunds.create({
           payment_intent: order.transactionId
         });
@@ -246,13 +314,14 @@ exports.cancelOrder = async (req, res, next) => {
     order.cancelledAt = Date.now();
     await order.save({ session });
 
-    // Restore stock sequentially for session safety
-    for (const item of order.items) {
-      await Product.findByIdAndUpdate(
-        item.product,
-        { $inc: { stock: item.quantity } },
-        { session }
-      );
+    if (shouldRestoreStock) {
+      for (const item of order.items) {
+        await Product.findByIdAndUpdate(
+          item.product,
+          { $inc: { stock: item.quantity } },
+          { session }
+        );
+      }
     }
 
     await session.commitTransaction();
