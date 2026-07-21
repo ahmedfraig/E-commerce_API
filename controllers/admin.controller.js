@@ -20,6 +20,19 @@ exports.getDashboardStats = async (req, res, next) => {
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
 
+    const realizedRevenueMatch = {
+      $and: [
+        { status: { $nin: ['cancelled', 'returned'] } },
+        { paymentStatus: { $ne: 'refunded' } },
+        {
+          $or: [
+            { paymentStatus: 'paid' },
+            { paymentMethod: 'cash', status: 'delivered' }
+          ]
+        }
+      ]
+    };
+
     const [
       totalRevenueAgg,
       thisMonthRevenueAgg,
@@ -32,19 +45,19 @@ exports.getDashboardStats = async (req, res, next) => {
       dailyRevenue,
       recentOrders
     ] = await Promise.all([
-      // Total revenue (excluding cancelled)
+      // Total realized revenue
       Order.aggregate([
-        { $match: { status: { $ne: 'cancelled' } } },
+        { $match: realizedRevenueMatch },
         { $group: { _id: null, total: { $sum: '$totalPrice' } } }
       ]),
       // This month revenue
       Order.aggregate([
-        { $match: { createdAt: { $gte: thisMonthStart }, status: { $ne: 'cancelled' } } },
+        { $match: { createdAt: { $gte: thisMonthStart }, ...realizedRevenueMatch } },
         { $group: { _id: null, total: { $sum: '$totalPrice' } } }
       ]),
       // Last month revenue
       Order.aggregate([
-        { $match: { createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd }, status: { $ne: 'cancelled' } } },
+        { $match: { createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd }, ...realizedRevenueMatch } },
         { $group: { _id: null, total: { $sum: '$totalPrice' } } }
       ]),
       // Orders grouped by status
@@ -59,7 +72,7 @@ exports.getDashboardStats = async (req, res, next) => {
       Product.countDocuments(),
       // Top products by sales
       Order.aggregate([
-        { $match: { status: { $ne: 'cancelled' } } },
+        { $match: realizedRevenueMatch },
         { $unwind: '$items' },
         {
           $group: {
@@ -75,7 +88,7 @@ exports.getDashboardStats = async (req, res, next) => {
       ]),
       // Daily revenue (last 7 days)
       Order.aggregate([
-        { $match: { createdAt: { $gte: sevenDaysAgo }, status: { $ne: 'cancelled' } } },
+        { $match: { createdAt: { $gte: sevenDaysAgo }, ...realizedRevenueMatch } },
         {
           $group: {
             _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
