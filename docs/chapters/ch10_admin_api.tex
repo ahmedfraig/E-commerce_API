@@ -1,0 +1,175 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Admin API}
+% ════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}
+All admin routes require authentication \textbf{and} admin role. Prefix: \texttt{/admin}.
+\end{notebox}
+
+% ── 1. Dashboard ──────────────────────────────────────────────────────────
+\section{Dashboard Analytics}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/admin/dashboard} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "dashboard": {
+    "orders": {
+      "total": 150,
+      "pending": 10,
+      "confirmed": 25,
+      "processing": 15,
+      "shipped": 30,
+      "delivered": 60,
+      "cancelled": 10
+    },
+    "revenue": {
+      "total": 125000.00,
+      "thisMonth": 15000.00,
+      "lastMonth": 12000.00,
+      "growthPercent": 25
+    },
+    "recentOrders": [
+      {
+        "_id": "...",
+        "user": { "username": "...", "email": "..." },
+        "totalPrice": 299.99,
+        "status": "pending",
+        "createdAt": "..."
+      }
+    ],
+    "topProducts": [
+      {
+        "_id": "product_id",
+        "name": "Wireless Headphones",
+        "image": "https://...",
+        "totalSold": 120,
+        "revenue": 29998.80
+      }
+    ],
+    "ordersByStatus": [
+      { "_id": "delivered", "count": 60 },
+      { "_id": "pending", "count": 10 }
+    ],
+    "dailyRevenue": [
+      { "_id": "2026-07-13", "revenue": 2500.00, "orders": 5 },
+      { "_id": "2026-07-14", "revenue": 3200.00, "orders": 8 }
+    ],
+    "totalCustomers": 245,
+    "totalAdmins": 3,
+    "totalProducts": 85
+  }
+}
+\end{lstlisting}
+
+\subsection*{Aggregation Pipelines (executed concurrently via Promise.all)}
+\begin{enumerate}
+  \item \textbf{Total Revenue} --- Sum of \texttt{totalPrice} for non-cancelled orders.
+  \item \textbf{This Month Revenue} --- Same, filtered by current month start.
+  \item \textbf{Last Month Revenue} --- Same, filtered by last month boundaries.
+  \item \textbf{Orders by Status} --- Group by \texttt{status}, count each.
+  \item \textbf{Top 5 Products} --- Unwind items, group by product, sort by \texttt{totalSold} descending.
+  \item \textbf{Daily Revenue (7 days)} --- Group by date string, sum revenue and count orders.
+  \item \textbf{Recent Orders} --- Last 5 orders, populated with user info.
+  \item \textbf{Counts} --- \texttt{totalCustomers}, \texttt{totalAdmins}, \texttt{totalProducts}.
+  \item \textbf{Growth Percent} --- \texttt{((thisMonth - lastMonth) / lastMonth) * 100}.
+\end{enumerate}
+
+% ── 2. Get All Orders ─────────────────────────────────────────────────────
+\section{Get All Orders}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/admin} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+\subsection*{Query Parameters}
+\begin{longtable}{@{}llp{7cm}@{}}
+  \toprule
+  \textbf{Param} & \textbf{Default} & \textbf{Description} \\
+  \midrule
+  \texttt{page}          & 1   & Page number \\
+  \texttt{limit}         & 10  & Items per page (max 100) \\
+  \texttt{status}        & --- & Filter by order status \\
+  \texttt{paymentMethod} & --- & Filter: cash, stripe, paypal, paymob \\
+  \texttt{startDate}     & --- & Filter orders from this date \\
+  \texttt{endDate}       & --- & Filter orders until this date \\
+  \texttt{sort}          & \texttt{-createdAt} & Comma-separated sort fields \\
+  \bottomrule
+\end{longtable}
+
+% ── 3. Get Order Details ──────────────────────────────────────────────────
+\section{Get Order Details}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/admin/:id} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+Populates user with \texttt{username}, \texttt{email}, \texttt{phone}.
+
+% ── 4. Update Order Status ────────────────────────────────────────────────
+\section{Update Order Status}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{PATCH} \\
+  \textbf{URL:}    & \apipath{/admin/:id/status} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{ "status": "confirmed" }
+\end{lstlisting}
+
+\textbf{Valid transitions} are enforced (see Order Status Lifecycle in Chapter 8). On cancellation: stock is restored and payment is marked as refunded if already paid. An automated email notification is sent to the customer.
+
+% ── 5. Get All Carts ──────────────────────────────────────────────────────
+\section{View All User Carts}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/admin/carts} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+Paginated. Populates user with \texttt{username}, \texttt{email}.
+
+% ── 6. Get All Wishlists ──────────────────────────────────────────────────
+\section{View All User Wishlists}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/admin/wishlists} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+% ── 7. Wishlist Stats ─────────────────────────────────────────────────────
+\section{Most Wishlisted Products}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/admin/wishlists/stats} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "data": [
+    { "_id": "product_id", "count": 45, "name": "Wireless Headphones", "price": 299.99 },
+    { "_id": "product_id", "count": 38, "name": "Smart Watch", "price": 199.99 }
+  ]
+}
+\end{lstlisting}
+
+Returns top 10 most wishlisted products via aggregation pipeline (\texttt{\$unwind}, \texttt{\$group}, \texttt{\$lookup}).

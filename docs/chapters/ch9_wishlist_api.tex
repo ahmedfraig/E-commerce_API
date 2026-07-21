@@ -1,0 +1,84 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Wishlist API}
+% ════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}
+All wishlist routes require authentication. Prefix: \texttt{/wishlists}. Each user has one wishlist (auto-created on first access).
+\end{notebox}
+
+% ── 1. Get Wishlist ───────────────────────────────────────────────────────
+\section{Get Wishlist}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/wishlists/my} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "data": {
+    "_id": "wishlist_id",
+    "user": "user_id",
+    "products": [
+      {
+        "_id": "product_id",
+        "name": "Wireless Headphones",
+        "price": 299.99,
+        "discountPrice": 249.99,
+        "images": [{ "public_id": "...", "url": "https://..." }],
+        "stock": 50
+      }
+    ],
+    "createdAt": "...",
+    "updatedAt": "..."
+  }
+}
+\end{lstlisting}
+
+Products are auto-populated with \texttt{name}, \texttt{price}, \texttt{discountPrice}, \texttt{images}, \texttt{stock}. Only active products are returned (via \texttt{match: \{isActive: true\}}).
+
+% ── 2. Add to Wishlist ────────────────────────────────────────────────────
+\section{Add Product to Wishlist}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/wishlists/add/:productId} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+Uses \texttt{\$addToSet} (atomic, no duplicates). Auto-creates wishlist if it doesn't exist (upsert).
+
+\subsection*{Error Responses}
+\begin{longtable}{@{}clp{8cm}@{}}
+  \toprule
+  \textbf{Status} & \textbf{Condition} & \textbf{Message} \\
+  \midrule
+  404 & Product not found & ``Product not found'' \\
+  400 & Product inactive & ``This product is no longer available'' \\
+  \bottomrule
+\end{longtable}
+
+% ── 3. Remove from Wishlist ───────────────────────────────────────────────
+\section{Remove Product from Wishlist}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{DELETE} \\
+  \textbf{URL:}    & \apipath{/wishlists/remove/:productId} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+Uses \texttt{\$pull} for atomic removal.
+
+% ── 4. Clear Wishlist ─────────────────────────────────────────────────────
+\section{Clear Wishlist}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{DELETE} \\
+  \textbf{URL:}    & \apipath{/wishlists/clear} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+Sets \texttt{products} array to empty via \texttt{\$set}.

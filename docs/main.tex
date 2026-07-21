@@ -1,0 +1,171 @@
+% ============================================================================
+% SEF E-Commerce RESTful API — Full Project Documentation
+% ============================================================================
+\documentclass[12pt,a4paper]{report}
+
+% ── Packages ────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{parskip}
+
+% ── Colors ──────────────────────────────────────────────────────────────────
+\definecolor{codegreen}{rgb}{0.25,0.49,0.48}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.96}
+\definecolor{darkblue}{RGB}{26,26,46}
+\definecolor{accentblue}{RGB}{52,152,219}
+\definecolor{successgreen}{RGB}{39,174,96}
+\definecolor{warnorange}{RGB}{243,156,18}
+\definecolor{dangerred}{RGB}{231,76,60}
+
+% ── Hyperref Setup ──────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true,
+  linkcolor=darkblue,
+  urlcolor=accentblue,
+  citecolor=darkblue,
+  pdftitle={SEF E-Commerce API Documentation},
+  pdfauthor={Ahmed Fraig},
+}
+
+% ── Code Listing Style ─────────────────────────────────────────────────────
+\lstdefinestyle{mystyle}{
+  backgroundcolor=\color{backcolour},
+  commentstyle=\color{codegreen},
+  keywordstyle=\color{codepurple}\bfseries,
+  numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codegreen},
+  basicstyle=\ttfamily\footnotesize,
+  breakatwhitespace=false,
+  breaklines=true,
+  captionpos=b,
+  keepspaces=true,
+  numbers=left,
+  numbersep=5pt,
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  tabsize=2,
+  frame=single,
+  rulecolor=\color{codegray!30},
+  xleftmargin=1.5em,
+  framexleftmargin=1em,
+}
+\lstset{style=mystyle}
+
+% ── JSON Language Definition ───────────────────────────────────────────────
+\lstdefinelanguage{json}{
+  morestring=[b]",
+  literate=
+    *{0}{{{\color{codepurple}0}}}{1}
+    {1}{{{\color{codepurple}1}}}{1}
+    {2}{{{\color{codepurple}2}}}{1}
+    {3}{{{\color{codepurple}3}}}{1}
+    {4}{{{\color{codepurple}4}}}{1}
+    {5}{{{\color{codepurple}5}}}{1}
+    {6}{{{\color{codepurple}6}}}{1}
+    {7}{{{\color{codepurple}7}}}{1}
+    {8}{{{\color{codepurple}8}}}{1}
+    {9}{{{\color{codepurple}9}}}{1}
+    {:}{{{\color{codegray}{:}}}}{1}
+    {,}{{{\color{codegray}{,}}}}{1}
+    {\{}{{{\color{darkblue}{\{}}}}{1}
+    {\}}{{{\color{darkblue}{\}}}}}{1}
+    {[}{{{\color{darkblue}{[}}}}{1}
+    {]}{{{\color{darkblue}{]}}}}{1},
+}
+
+% ── Tcolorbox Styles ───────────────────────────────────────────────────────
+\tcbuselibrary{skins,breakable}
+
+\newtcolorbox{notebox}{
+  colback=accentblue!5, colframe=accentblue, title=\textbf{Note},
+  fonttitle=\bfseries\color{white}, breakable
+}
+
+\newtcolorbox{warningbox}{
+  colback=warnorange!5, colframe=warnorange, title=\textbf{Warning},
+  fonttitle=\bfseries\color{white}, breakable
+}
+
+\newtcolorbox{tipbox}{
+  colback=successgreen!5, colframe=successgreen, title=\textbf{Tip},
+  fonttitle=\bfseries\color{white}, breakable
+}
+
+% ── Header/Footer ──────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{SEF E-Commerce API}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Title Formatting ───────────────────────────────────────────────────────
+\titleformat{\chapter}[display]
+  {\normalfont\Huge\bfseries\color{darkblue}}
+  {\chaptertitlename\ \thechapter}{20pt}{\Huge}
+
+% ── Convenience Commands ───────────────────────────────────────────────────
+\newcommand{\apimethod}[1]{\texttt{\textbf{\color{accentblue}#1}}}
+\newcommand{\apipath}[1]{\texttt{\color{codepurple}#1}}
+\newcommand{\jsonfield}[1]{\texttt{\color{codegreen}#1}}
+
+% ════════════════════════════════════════════════════════════════════════════
+\begin{document}
+
+% ── Title Page ─────────────────────────────────────────────────────────────
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Huge\bfseries\color{darkblue} SEF E-Commerce\\RESTful API\par}
+  \vspace{1cm}
+  {\Large Full Project Documentation\par}
+  \vspace{0.5cm}
+  {\large\color{codegray} Backend Architecture, API Reference \& Frontend Integration Guide\par}
+  \vspace{2cm}
+  {\large\bfseries Ahmed Fraig\par}
+  \vspace{0.5cm}
+  {\large \today\par}
+  \vspace{2cm}
+  \begin{tabular}{ccccc}
+    \textbf{Node.js} & \textbf{Express 5} & \textbf{MongoDB} & \textbf{Stripe} & \textbf{JWT} \\
+  \end{tabular}
+  \vfill
+  {\small Built as part of an Advanced Backend Engineering Training Program.}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ════════════════════════════════════════════════════════════════════════════
+\input{chapters/ch1_overview}
+\input{chapters/ch2_architecture}
+\input{chapters/ch3_database}
+\input{chapters/ch4_auth_api}
+\input{chapters/ch5_users_api}
+\input{chapters/ch6_products_api}
+\input{chapters/ch7_cart_api}
+\input{chapters/ch8_orders_api}
+\input{chapters/ch9_wishlist_api}
+\input{chapters/ch10_admin_api}
+\input{chapters/ch11_frontend_guide}
+
+\end{document}

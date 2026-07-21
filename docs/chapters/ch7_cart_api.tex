@@ -1,0 +1,168 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Cart API}
+% ════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}
+All cart routes require authentication. Prefix: \texttt{/carts}. Each user has exactly one cart (auto-created on first access).
+\end{notebox}
+
+% ── 1. Get Cart ───────────────────────────────────────────────────────────
+\section{Get Cart}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/carts} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "data": {
+    "_id": "...",
+    "user": "user_id",
+    "items": [
+      {
+        "product": "product_id",
+        "name": "Wireless Headphones",
+        "image": "https://res.cloudinary.com/...",
+        "price": 249.99,
+        "quantity": 2
+      }
+    ],
+    "coupon": {
+      "code": "SAVE10",
+      "discountType": "percentage",
+      "discountValue": 10
+    },
+    "subtotal": 499.98,
+    "discountAmount": 49.998,
+    "total": 449.982,
+    "itemCount": 2
+  }
+}
+\end{lstlisting}
+
+\begin{tipbox}
+\texttt{subtotal}, \texttt{discountAmount}, \texttt{total}, and \texttt{itemCount} are Mongoose \textbf{virtual fields} --- computed on the fly, never stored in DB.
+\end{tipbox}
+
+% ── 2. Add Item ───────────────────────────────────────────────────────────
+\section{Add Item to Cart}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/carts/items} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{
+  "productId": "60d5ecb74a12c83b8c4e4f1a",
+  "quantity": 2
+}
+\end{lstlisting}
+
+\textbf{Validation:}
+\begin{itemize}
+  \item \texttt{productId} --- Required, valid 24-char MongoDB ObjectId
+  \item \texttt{quantity} --- Required, integer, min 1
+\end{itemize}
+
+\textbf{Business Logic:}
+\begin{itemize}
+  \item Product must exist and be active.
+  \item If product is already in cart, quantities are merged.
+  \item Stock is validated against the new total quantity.
+  \item Price is set to \texttt{discountPrice} if available, otherwise \texttt{price}.
+\end{itemize}
+
+% ── 3. Update Quantity ────────────────────────────────────────────────────
+\section{Update Item Quantity}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{PATCH} \\
+  \textbf{URL:}    & \apipath{/carts/items} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{
+  "productId": "60d5ecb74a12c83b8c4e4f1a",
+  "quantity": 3
+}
+\end{lstlisting}
+
+Sets the quantity to the specified value (not increment). Validates against current stock.
+
+% ── 4. Remove Item ────────────────────────────────────────────────────────
+\section{Remove Item from Cart}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{DELETE} \\
+  \textbf{URL:}    & \apipath{/carts/items/:productId} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+Returns updated cart after removal.
+
+% ── 5. Apply Coupon ───────────────────────────────────────────────────────
+\section{Apply Coupon}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/carts/coupon} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{ "code": "SAVE10" }
+\end{lstlisting}
+
+\textbf{Available Coupons:}
+\begin{longtable}{@{}lll@{}}
+  \toprule
+  \textbf{Code} & \textbf{Type} & \textbf{Value} \\
+  \midrule
+  \texttt{SAVE10} & Percentage & 10\% off \\
+  \texttt{SAVE20} & Percentage & 20\% off \\
+  \texttt{SAVE50} & Percentage & 50\% off \\
+  \texttt{SAVE80} & Percentage & 80\% off \\
+  \texttt{OFF50}  & Fixed      & \$50 off \\
+  \bottomrule
+\end{longtable}
+
+\subsection*{Error Responses}
+\begin{longtable}{@{}clp{7cm}@{}}
+  \toprule
+  \textbf{Status} & \textbf{Condition} & \textbf{Message} \\
+  \midrule
+  400 & Invalid code           & ``Invalid coupon code'' \\
+  400 & Cart is empty          & ``Add items to your cart before applying a coupon.'' \\
+  400 & Coupon already applied & ``A coupon is already applied. Remove it first.'' \\
+  \bottomrule
+\end{longtable}
+
+% ── 6. Remove Coupon ──────────────────────────────────────────────────────
+\section{Remove Coupon}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{DELETE} \\
+  \textbf{URL:}    & \apipath{/carts/coupon} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+% ── 7. Clear Cart ─────────────────────────────────────────────────────────
+\section{Clear Cart}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{DELETE} \\
+  \textbf{URL:}    & \apipath{/carts/clear} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+Removes all items and any applied coupon. Returns empty cart.

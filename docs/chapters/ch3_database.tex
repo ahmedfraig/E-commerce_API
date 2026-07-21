@@ -1,0 +1,162 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Database Models}
+% ════════════════════════════════════════════════════════════════════════════
+
+\section{User Model}
+
+\begin{longtable}{@{}p{3.5cm}p{3cm}p{2cm}p{5.5cm}@{}}
+  \toprule
+  \textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Notes} \\
+  \midrule
+  \texttt{username}       & String     & Yes & Min 2 chars \\
+  \texttt{email}          & String     & Yes & Unique, lowercase \\
+  \texttt{password}       & String     & Yes & \texttt{select: false}; hashed with bcrypt (10 rounds) via pre-save hook \\
+  \texttt{phone}          & String     & No  & --- \\
+  \texttt{avatar.public\_id} & String  & No  & Cloudinary public ID \\
+  \texttt{avatar.url}     & String     & No  & Defaults to placeholder image \\
+  \texttt{role}           & String     & No  & Enum: \texttt{admin}, \texttt{customer}. Default: \texttt{customer} \\
+  \texttt{needsPasswordChange} & Boolean & No & Default: \texttt{false}. Set to \texttt{true} when admin creates user \\
+  \texttt{addresses}      & [Address]  & No  & Array of embedded address sub-documents \\
+  \texttt{isVerified}     & Boolean    & No  & Default: \texttt{false} \\
+  \texttt{resetPasswordToken} & String & No  & SHA-256 hashed crypto token \\
+  \texttt{resetPasswordExpire} & Date  & No  & 10-minute expiry \\
+  \bottomrule
+\end{longtable}
+
+\textbf{Address Sub-document:} \texttt{fullName}, \texttt{phone}, \texttt{country}, \texttt{city}, \texttt{address}, \texttt{postalCode} (all String, no \texttt{\_id}).
+
+\textbf{Instance Methods:}
+\begin{itemize}
+  \item \texttt{comparePassword(entered)} --- bcrypt compare
+  \item \texttt{getSignedAccessToken()} --- JWT signed with \texttt{JWT\_SECRET}, expires in \texttt{JWT\_EXPIRES\_IN}
+  \item \texttt{getSignedRefreshToken()} --- JWT signed with \texttt{JWT\_REFRESH\_SECRET}, expires in 30 days
+  \item \texttt{toJSON()} --- Strips \texttt{password}, \texttt{resetPasswordToken}, \texttt{resetPasswordExpire}, \texttt{\_\_v}
+\end{itemize}
+
+\section{Product Model}
+
+\begin{longtable}{@{}p{3.5cm}p{3cm}p{2cm}p{5.5cm}@{}}
+  \toprule
+  \textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Notes} \\
+  \midrule
+  \texttt{name}              & String    & Yes & Max 200 chars \\
+  \texttt{slug}              & String    & No  & Auto-generated via pre-save hook \\
+  \texttt{shortDescription}  & String    & Yes & Max 500 chars \\
+  \texttt{description}       & String    & Yes & --- \\
+  \texttt{price}             & Number    & Yes & Min 0 \\
+  \texttt{discountPrice}     & Number    & No  & Must be less than \texttt{price} \\
+  \texttt{stock}             & Number    & Yes & Min 0 \\
+  \texttt{sku}               & String    & No  & Unique, sparse index \\
+  \texttt{images}            & [\{public\_id, url\}] & Yes & At least one required \\
+  \texttt{category}          & String    & Yes & Stored lowercase \\
+  \texttt{subcategory}       & String    & No  & --- \\
+  \texttt{brand}             & String    & No  & --- \\
+  \texttt{tags}              & [String]  & No  & --- \\
+  \texttt{reviews}           & [Review]  & No  & Embedded review sub-documents \\
+  \texttt{averageRating}     & Number    & No  & Default: 0 \\
+  \texttt{numReviews}        & Number    & No  & Default: 0 \\
+  \texttt{featured}          & Boolean   & No  & Default: \texttt{false} \\
+  \texttt{isActive}          & Boolean   & No  & Default: \texttt{true} (soft delete) \\
+  \texttt{createdBy}         & ObjectId  & Yes & Ref: User \\
+  \bottomrule
+\end{longtable}
+
+\textbf{Review Sub-document:} \texttt{user} (ObjectId, ref User), \texttt{rating} (1--5), \texttt{comment} (String), with timestamps.
+
+\textbf{Indexes:}
+\begin{itemize}
+  \item Text index on \texttt{name}, \texttt{description}, \texttt{brand} (full-text search)
+  \item Compound index: \texttt{\{category: 1, brand: 1, price: 1, averageRating: -1, createdAt: -1\}}
+\end{itemize}
+
+\section{Order Model}
+
+\begin{longtable}{@{}p{3.5cm}p{3cm}p{2cm}p{5.5cm}@{}}
+  \toprule
+  \textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Notes} \\
+  \midrule
+  \texttt{user}            & ObjectId & Yes & Ref: User \\
+  \texttt{items}           & [OrderItem] & Yes & At least one item \\
+  \texttt{shippingAddress} & Object   & Yes & fullName, phone, country, city, address, postalCode \\
+  \texttt{paymentMethod}   & String   & No  & Enum: cash, stripe, paypal, paymob. Default: cash \\
+  \texttt{paymentStatus}   & String   & No  & Enum: pending, paid, failed, refunded. Default: pending \\
+  \texttt{transactionId}   & String   & No  & Stripe payment intent ID \\
+  \texttt{subtotal}        & Number   & Yes & Sum of (price * quantity) \\
+  \texttt{shippingFee}     & Number   & No  & Free if subtotal >= 1000, else 50 \\
+  \texttt{tax}             & Number   & No  & 14\% of subtotal \\
+  \texttt{discount}        & Number   & No  & Coupon discount amount \\
+  \texttt{couponCode}      & String   & No  & Applied coupon code \\
+  \texttt{totalPrice}      & Number   & Yes & subtotal + shipping + tax - discount \\
+  \texttt{status}          & String   & No  & Enum: pending, confirmed, processing, shipped, delivered, cancelled, returned \\
+  \texttt{paidAt}          & Date     & No  & Set on successful payment \\
+  \texttt{deliveredAt}     & Date     & No  & Set when status = delivered \\
+  \texttt{cancelledAt}     & Date     & No  & Set when cancelled \\
+  \texttt{customerNote}    & String   & No  & Max 1000 chars \\
+  \texttt{adminNote}       & String   & No  & Max 1000 chars \\
+  \bottomrule
+\end{longtable}
+
+\textbf{OrderItem:} \texttt{product} (ObjectId), \texttt{name}, \texttt{image}, \texttt{price}, \texttt{quantity}.
+
+\textbf{Indexes:} \texttt{\{user: 1, status: 1\}}, \texttt{\{createdAt: -1\}}.
+
+\section{Cart Model}
+
+\begin{longtable}{@{}p{3.5cm}p{3.5cm}p{2cm}p{5cm}@{}}
+  \toprule
+  \textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Notes} \\
+  \midrule
+  \texttt{user}    & ObjectId & Yes & Ref: User, unique (one cart per user) \\
+  \texttt{items}   & [CartItem] & No & product, name, image, price, quantity \\
+  \texttt{coupon}  & Object   & No  & \{code, discountType, discountValue\} \\
+  \bottomrule
+\end{longtable}
+
+\textbf{Virtual Fields} (computed, not stored):
+\begin{itemize}
+  \item \texttt{subtotal} --- Sum of \texttt{price * quantity} for all items
+  \item \texttt{discountAmount} --- Calculated from coupon (percentage or fixed)
+  \item \texttt{total} --- \texttt{subtotal - discountAmount} (min 0)
+  \item \texttt{itemCount} --- Sum of all quantities
+\end{itemize}
+
+\section{Coupon Model}
+
+\begin{longtable}{@{}p{3.5cm}p{3cm}p{2cm}p{5.5cm}@{}}
+  \toprule
+  \textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Notes} \\
+  \midrule
+  \texttt{code}           & String  & Yes & Unique, uppercase \\
+  \texttt{discountType}   & String  & Yes & Enum: percentage, fixed \\
+  \texttt{discountValue}  & Number  & Yes & Min 0 \\
+  \texttt{expiresAt}      & Date    & Yes & --- \\
+  \texttt{usageLimit}     & Number  & No  & null = unlimited \\
+  \texttt{usedCount}      & Number  & No  & Default: 0 \\
+  \texttt{minOrderAmount} & Number  & No  & Default: 0 \\
+  \texttt{isActive}       & Boolean & No  & Default: true \\
+  \bottomrule
+\end{longtable}
+
+\section{OTP Model}
+
+\begin{longtable}{@{}p{3.5cm}p{3cm}p{2cm}p{5.5cm}@{}}
+  \toprule
+  \textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Notes} \\
+  \midrule
+  \texttt{email}     & String & Yes & --- \\
+  \texttt{otp}       & String & Yes & SHA-256 hashed \\
+  \texttt{expiresAt} & Date   & Yes & TTL index; MongoDB auto-deletes \\
+  \texttt{userData}  & Object & No  & Temporary registration data \\
+  \bottomrule
+\end{longtable}
+
+\section{Wishlist Model}
+
+\begin{longtable}{@{}p{3.5cm}p{3.5cm}p{2cm}p{5cm}@{}}
+  \toprule
+  \textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Notes} \\
+  \midrule
+  \texttt{user}     & ObjectId   & Yes & Ref: User, unique \\
+  \texttt{products} & [ObjectId] & No  & Ref: Product; auto-populated via pre-find hook \\
+  \bottomrule
+\end{longtable}

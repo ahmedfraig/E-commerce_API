@@ -1,0 +1,70 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Project Overview}
+% ════════════════════════════════════════════════════════════════════════════
+
+\section{Introduction}
+
+The \textbf{SEF E-Commerce RESTful API} is a production-ready backend system tailored for modern e-commerce platforms. Built following the \textbf{MVC (Model--View--Controller)} architecture, it manages the complete lifecycle of an online store---from OTP-based user registration and product catalogue management to atomic order processing with Mongoose transactions and a real-time admin analytics dashboard powered by MongoDB Aggregation Pipelines.
+
+\section{Key Features}
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Robust Authentication \& Authorization} --- OTP-based email verification, dual-token system (short-lived access + long-lived refresh via HttpOnly cookie), cryptographic password reset, and role-based access control (Admin / Customer).
+  \item \textbf{Product Management} --- Full-text search, server-side pagination, advanced filtering (price, category, brand, tags), dynamic image uploads to Cloudinary with transactional rollback, embedded review system with dynamic average rating, and auto-generated SEO slugs.
+  \item \textbf{Cart \& Checkout} --- Real-time stock validation, coupon engine (percentage and fixed discounts), and virtual-field-based financial calculations (subtotal, discount, total).
+  \item \textbf{Orders \& Payments} --- Atomic order creation via Mongoose Transactions with stock deduction, Stripe Payment Intents with webhook verification (\texttt{payment\_intent.succeeded}), full order lifecycle tracking, automated email notifications, and Stripe refund on cancellation.
+  \item \textbf{Admin Dashboard} --- MongoDB Aggregation Pipelines for total revenue, month-over-month growth, top-5 products, daily sales chart data (7 days), order breakdown by status, and recent orders.  Concurrent execution via \texttt{Promise.all}.
+  \item \textbf{Security Hardening} --- bcryptjs password hashing (10 salt rounds), SHA-256 hashed OTPs and reset tokens, mass-assignment protection, anti-email-enumeration, CORS with credentials, Helmet HTTP headers, rate limiting (100/15 min general, 20/15 min auth), and a global error handler for Mongoose, JWT, Multer, and duplicate-key errors.
+  \item \textbf{Performance} --- \texttt{.lean()} queries, pagination capped at 100, \texttt{Promise.all} for independent queries, and compound MongoDB indexes.
+\end{itemize}
+
+\section{Technology Stack}
+
+\begin{longtable}{@{}ll@{}}
+  \toprule
+  \textbf{Category} & \textbf{Technology} \\
+  \midrule
+  Runtime           & Node.js, Express.js v5 \\
+  Database          & MongoDB, Mongoose ODM v9 \\
+  Authentication    & JSON Web Tokens (access + refresh), bcryptjs, crypto \\
+  Security          & Helmet, express-rate-limit, express-mongo-sanitize, CORS \\
+  File Storage      & Cloudinary v2, Multer v2 \\
+  Payments          & Stripe API (Payment Intents + Webhooks) \\
+  Validation        & Joi v18 \\
+  Email             & Nodemailer v9 \\
+  Utilities         & Slugify, Morgan, cookie-parser \\
+  Deployment        & Vercel (Serverless) \\
+  \bottomrule
+\end{longtable}
+
+\section{Environment Variables}
+
+The following environment variables must be configured in a \texttt{.env} file at the project root:
+
+\begin{lstlisting}[language=bash,title=.env]
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/ecommerce-api
+
+# JWT (use two DIFFERENT secrets)
+JWT_SECRET=your_access_token_secret
+JWT_REFRESH_SECRET=your_refresh_token_secret
+JWT_EXPIRES_IN=15m
+
+# Frontend URL (CORS origin + password reset links)
+FRONTEND_URL=http://localhost:3000
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+# Nodemailer (Gmail App Password)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_app_password
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+\end{lstlisting}

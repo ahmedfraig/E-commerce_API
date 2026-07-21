@@ -16,9 +16,6 @@ const getOrCreateCart = async (userId, session = null) => {
   }
   return cart;
 };
-
-// @desc    Get cart
-// @route   GET /carts
 exports.getCart = async (req, res, next) => {
   try {
     const cart = await getOrCreateCart(req.user.id);
@@ -27,9 +24,6 @@ exports.getCart = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Add item to cart
-// @route   POST /carts/items
 exports.addItemToCart = async (req, res, next) => {
   try {
     const { productId, quantity } = req.body;
@@ -64,9 +58,6 @@ exports.addItemToCart = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Update item quantity
-// @route   PATCH /carts/items
 exports.updateItemQuantity = async (req, res, next) => {
   try {
     const { productId, quantity } = req.body;
@@ -94,9 +85,6 @@ exports.updateItemQuantity = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Remove item from cart
-// @route   DELETE /carts/items/:productId
 exports.removeItem = async (req, res, next) => {
   try {
     const cart = await Cart.findOne({ user: req.user.id });
@@ -113,9 +101,6 @@ exports.removeItem = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Apply coupon
-// @route   POST /carts/coupon
 exports.applyCoupon = async (req, res, next) => {
   try {
     const { code } = req.body;
@@ -150,9 +135,6 @@ exports.applyCoupon = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Remove coupon
-// @route   DELETE /carts/coupon
 exports.removeCoupon = async (req, res, next) => {
   try {
     const cart = await Cart.findOne({ user: req.user.id });
@@ -170,9 +152,6 @@ exports.removeCoupon = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Clear cart
-// @route   DELETE /carts/clear
 exports.clearCart = async (req, res, next) => {
   try {
     const cart = await Cart.findOne({ user: req.user.id });

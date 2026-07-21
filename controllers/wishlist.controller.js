@@ -2,9 +2,6 @@ const Wishlist = require('../models/Wishlist.model');
 const Product = require('../models/Product.model');
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
-
-// @desc    Get user's wishlist
-// @route   GET /wishlists/my
 exports.getWishlist = async (req, res, next) => {
   try {
     let wishlist = await Wishlist.findOne({ user: req.user.id })
@@ -30,9 +27,6 @@ exports.getWishlist = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Add product to wishlist
-// @route   POST /wishlists/add/:productId
 exports.addToWishlist = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.productId);
@@ -50,9 +44,6 @@ exports.addToWishlist = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Remove product from wishlist
-// @route   DELETE /wishlists/remove/:productId
 exports.removeFromWishlist = async (req, res, next) => {
   try {
     const wishlist = await Wishlist.findOneAndUpdate(
@@ -68,9 +59,6 @@ exports.removeFromWishlist = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Clear wishlist
-// @route   DELETE /wishlists/clear
 exports.clearWishlist = async (req, res, next) => {
   try {
     const wishlist = await Wishlist.findOneAndUpdate(

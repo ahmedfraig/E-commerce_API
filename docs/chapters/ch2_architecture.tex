@@ -1,0 +1,142 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{System Architecture}
+% ════════════════════════════════════════════════════════════════════════════
+
+\section{Project Directory Structure}
+
+\begin{lstlisting}[language=bash,title=Project Tree]
+ecommerce-api/
+|-- config/
+|   +-- cloudinary.js          # Cloudinary SDK configuration
+|-- controllers/
+|   |-- admin.controller.js    # Dashboard stats, order mgmt
+|   |-- auth.controller.js     # Register, login, OTP, reset
+|   |-- cart.controller.js     # Cart CRUD, coupon engine
+|   |-- order.controller.js    # Order creation, Stripe, cancel
+|   |-- product.controller.js  # Product CRUD, reviews, images
+|   |-- user.controller.js     # User CRUD, password change
+|   +-- wishlist.controller.js # Wishlist CRUD
+|-- DB/
+|   +-- connection.js          # Mongoose connection
+|-- middleware/
+|   |-- auth.middleware.js     # JWT protect + role authorize
+|   |-- error.middleware.js    # Global error handler
+|   |-- upload.middleware.js   # Multer disk storage config
+|   +-- validate.middleware.js # Joi validation runner
+|-- models/
+|   |-- Cart.model.js          # Cart schema + virtuals
+|   |-- Coupon.model.js        # Coupon schema
+|   |-- Order.model.js         # Order schema + indexes
+|   |-- OTP.model.js           # OTP schema + TTL index
+|   |-- Product.model.js       # Product schema + text index
+|   |-- User.model.js          # User schema + methods
+|   +-- Wishlist.model.js      # Wishlist schema
+|-- routes/
+|   |-- admin.routes.js
+|   |-- auth.routes.js
+|   |-- cart.routes.js
+|   |-- order.routes.js
+|   |-- product.routes.js
+|   |-- user.routes.js
+|   +-- wishlist.routes.js
+|-- utils/
+|   |-- AppError.js            # Custom error class
+|   |-- constants.js           # Centralized message strings
+|   |-- coupons.js             # Static coupon definitions
+|   |-- emailTemplates.js      # HTML email builders
+|   |-- sendEmail.js           # Nodemailer transport
+|   +-- token.js               # Token response helper
+|-- validation/
+|   |-- auth.validation.js     # Joi schemas for auth/users
+|   |-- cart.validation.js     # Joi schemas for cart
+|   |-- order.validation.js    # Joi schemas for orders
+|   +-- product.validation.js  # Joi schemas for products
+|-- index.js                   # App entry point
+|-- vercel.json                # Vercel serverless config
++-- package.json
+\end{lstlisting}
+
+\section{Application Entry Point (index.js)}
+
+The entry point initializes Express, applies global middleware in the correct order, mounts routes, and starts the server.
+
+\subsection{Middleware Pipeline (in order)}
+\begin{enumerate}
+  \item \textbf{Helmet} --- Sets security-related HTTP headers.
+  \item \textbf{CORS} --- Restricts to \texttt{FRONTEND\_URL} with credentials support.
+  \item \textbf{Rate Limiting} --- 100 req/15 min on \texttt{/api}, 20 req/15 min on \texttt{/auth}.
+  \item \textbf{Stripe Webhook} --- \texttt{POST /webhook} with \texttt{express.raw()} \emph{before} \texttt{express.json()}.
+  \item \textbf{Body Parsers} --- \texttt{express.json()} and \texttt{express.urlencoded()}.
+  \item \textbf{Cookie Parser} --- Parses \texttt{refreshToken} from cookies.
+  \item \textbf{Morgan} --- HTTP logging (dev mode only).
+\end{enumerate}
+
+\subsection{Route Mounting}
+\begin{longtable}{@{}ll@{}}
+  \toprule
+  \textbf{Prefix} & \textbf{Module} \\
+  \midrule
+  \texttt{/auth}      & \texttt{auth.routes.js} \\
+  \texttt{/users}     & \texttt{user.routes.js} \\
+  \texttt{/products}  & \texttt{product.routes.js} \\
+  \texttt{/carts}     & \texttt{cart.routes.js} \\
+  \texttt{/orders}    & \texttt{order.routes.js} \\
+  \texttt{/wishlists} & \texttt{wishlist.routes.js} \\
+  \texttt{/admin}     & \texttt{admin.routes.js} \\
+  \texttt{/webhook}   & Stripe webhook (inline) \\
+  \bottomrule
+\end{longtable}
+
+\section{Middleware Detail}
+
+\subsection{Authentication Middleware (\texttt{auth.middleware.js})}
+
+\textbf{\texttt{protect(req, res, next)}} --- Extracts the Bearer token from \texttt{Authorization} header, verifies it with \texttt{JWT\_SECRET}, fetches the user from DB, and attaches it to \texttt{req.user}. Also enforces forced password change: if \texttt{user.needsPasswordChange === true}, only \texttt{/change-password} and \texttt{/logout} routes are allowed.
+
+\textbf{\texttt{authorize(...roles)}} --- Returns middleware that checks if \texttt{req.user.role} is in the allowed roles array.
+
+\subsection{Validation Middleware (\texttt{validate.middleware.js})}
+
+Accepts a Joi schema and a source (default: \texttt{body}). Runs \texttt{schema.validate(req[source])} with \texttt{abortEarly: false}. On failure, joins all error messages and passes an \texttt{AppError(400)}.
+
+\subsection{Upload Middleware (\texttt{upload.middleware.js})}
+
+Uses Multer with disk storage (OS temp directory). Accepts only image MIME types. File size limit: 5\,MB.
+
+\subsection{Error Handler (\texttt{error.middleware.js})}
+
+The global error handler catches all errors and normalizes them into the standard JSON response. It handles:
+
+\begin{itemize}
+  \item \textbf{Multer errors} --- \texttt{LIMIT\_FILE\_SIZE}, \texttt{LIMIT\_FILE\_COUNT}, \texttt{LIMIT\_UNEXPECTED\_FILE}
+  \item \textbf{Invalid image type} --- Custom file filter message
+  \item \textbf{Malformed JSON} --- \texttt{SyntaxError} with status 400
+  \item \textbf{Mongoose CastError} --- Invalid ObjectId $\rightarrow$ 404
+  \item \textbf{Mongoose duplicate key (11000)} --- ``This \{field\} is already taken''
+  \item \textbf{Mongoose ValidationError} --- Joins all messages
+  \item \textbf{JWT errors} --- \texttt{JsonWebTokenError} $\rightarrow$ 401, \texttt{TokenExpiredError} $\rightarrow$ 401
+  \item \textbf{Unknown errors} --- Logged to console; client receives generic 500
+\end{itemize}
+
+\subsection{Standardized Response Format}
+
+\begin{lstlisting}[language=json,title=Success (single item)]
+{ "success": true, "data": { ... } }
+\end{lstlisting}
+
+\begin{lstlisting}[language=json,title=Success (paginated list)]
+{
+  "success": true,
+  "count": 10,
+  "pagination": { "total": 50, "page": 1, "pages": 5 },
+  "data": [ ... ]
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=json,title=Error]
+{
+  "success": false,
+  "status": "fail",
+  "message": "Human-readable error message"
+}
+\end{lstlisting}

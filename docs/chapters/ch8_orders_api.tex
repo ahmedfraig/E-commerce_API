@@ -1,0 +1,192 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Orders \& Payments API}
+% ════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}
+All order routes require authentication. Prefix: \texttt{/orders}. The Stripe webhook is mounted at \texttt{POST /webhook} (no auth, verified via Stripe signature).
+\end{notebox}
+
+% ── 1. Create Order ───────────────────────────────────────────────────────
+\section{Create Order (Transactional)}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/orders} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{
+  "shippingAddress": {
+    "fullName": "Ahmed Fraig",
+    "phone": "+201234567890",
+    "country": "Egypt",
+    "city": "Cairo",
+    "address": "123 Main Street, Nasr City",
+    "postalCode": "11765"
+  },
+  "paymentMethod": "stripe",
+  "customerNote": "Please deliver before 5 PM"
+}
+\end{lstlisting}
+
+\subsection*{Validation Rules}
+\begin{itemize}
+  \item All shipping address fields are \textbf{required}.
+  \item \texttt{paymentMethod} --- Optional, one of: \texttt{cash}, \texttt{stripe}, \texttt{paypal}, \texttt{paymob}. Default: \texttt{cash}.
+  \item \texttt{customerNote} --- Optional, max 1000 chars.
+\end{itemize}
+
+\subsection*{Transaction Flow (Mongoose Session)}
+\begin{enumerate}
+  \item Fetch user's cart within session.
+  \item For each cart item, atomically deduct stock using \texttt{findOneAndUpdate} with \texttt{\$inc: \{stock: -quantity\}} (checks \texttt{isActive} and \texttt{stock >= quantity}).
+  \item Re-calculate prices from the database (prevents stale cart prices).
+  \item Compute financial totals:
+    \begin{itemize}
+      \item \texttt{subtotal} = sum of (fresh price $\times$ quantity)
+      \item \texttt{shippingFee} = 0 if subtotal $\geq$ 1000, else 50
+      \item \texttt{tax} = subtotal $\times$ 0.14 (14\%)
+      \item \texttt{discount} = coupon calculation (percentage or fixed)
+      \item \texttt{totalPrice} = subtotal + shippingFee + tax -- discount
+    \end{itemize}
+  \item Create order document within session.
+  \item Clear cart items and coupon within session.
+  \item Commit transaction.
+  \item Send order confirmation email (outside transaction --- non-critical).
+\end{enumerate}
+
+\begin{warningbox}
+If any step fails (e.g., insufficient stock), the entire transaction is aborted and all stock deductions are rolled back.
+\end{warningbox}
+
+\subsection*{Success Response (201)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "data": {
+    "_id": "order_id",
+    "user": "user_id",
+    "items": [ ... ],
+    "shippingAddress": { ... },
+    "paymentMethod": "stripe",
+    "paymentStatus": "pending",
+    "subtotal": 499.98,
+    "shippingFee": 0,
+    "tax": 69.997,
+    "discount": 49.998,
+    "couponCode": "SAVE10",
+    "totalPrice": 519.979,
+    "status": "pending",
+    "createdAt": "..."
+  }
+}
+\end{lstlisting}
+
+% ── 2. Create Payment Intent ──────────────────────────────────────────────
+\section{Create Stripe Payment Intent}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/orders/create-payment-intent} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{ "orderId": "order_id_here" }
+\end{lstlisting}
+
+\subsection*{Guards}
+\begin{itemize}
+  \item Order must belong to the requesting user.
+  \item \texttt{paymentMethod} must be \texttt{stripe}.
+  \item Order must not be already paid or cancelled.
+\end{itemize}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "clientSecret": "pi_xxx_secret_xxx"
+}
+\end{lstlisting}
+
+\begin{tipbox}
+The \texttt{clientSecret} is passed to Stripe.js on the frontend to complete payment via \texttt{stripe.confirmCardPayment(clientSecret)}.
+\end{tipbox}
+
+% ── 3. Stripe Webhook ────────────────────────────────────────────────────
+\section{Stripe Webhook}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/webhook} \\
+  \textbf{Access:} & Stripe (signature verified) \\
+\end{tabularx}
+
+\textbf{Handled Events:}
+
+\begin{itemize}
+  \item \texttt{payment\_intent.succeeded} --- Updates order to \texttt{paymentStatus: 'paid'}, \texttt{status: 'confirmed'}, sets \texttt{paidAt} and \texttt{transactionId}. \textbf{Race condition guard:} if order was cancelled while payment was in-flight, auto-refunds via Stripe and sets \texttt{paymentStatus: 'refunded'}.
+  \item \texttt{payment\_intent.payment\_failed} --- Sets \texttt{paymentStatus: 'failed'}.
+\end{itemize}
+
+% ── 4. Get My Orders ──────────────────────────────────────────────────────
+\section{Get My Orders}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/orders/my} \\
+  \textbf{Access:} & User \\
+\end{tabularx}
+
+\subsection*{Query Parameters}
+\begin{longtable}{@{}llp{7.5cm}@{}}
+  \toprule
+  \textbf{Param} & \textbf{Default} & \textbf{Description} \\
+  \midrule
+  \texttt{page}   & 1   & Page number \\
+  \texttt{limit}  & 10  & Items per page (max 100) \\
+  \texttt{status} & --- & Filter by order status \\
+  \bottomrule
+\end{longtable}
+
+% ── 5. Get Single Order ──────────────────────────────────────────────────
+\section{Get Single Order}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/orders/my/:id} \\
+  \textbf{Access:} & User (owner only) \\
+\end{tabularx}
+
+% ── 6. Cancel Order ───────────────────────────────────────────────────────
+\section{Cancel Order (Transactional)}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{PATCH} \\
+  \textbf{URL:}    & \apipath{/orders/my/:id/cancel} \\
+  \textbf{Access:} & User (owner only) \\
+\end{tabularx}
+
+\textbf{Cancellation Rules:}
+\begin{itemize}
+  \item Only orders with status \texttt{pending} or \texttt{confirmed} can be cancelled.
+  \item If \texttt{paymentStatus === 'paid'} and \texttt{paymentMethod === 'stripe'}: automatic Stripe refund is issued.
+  \item If paid via non-Stripe method: returns error ``contact support''.
+  \item Stock is restored atomically within the same Mongoose transaction.
+\end{itemize}
+
+\subsection*{Order Status Lifecycle}
+
+\begin{lstlisting}[language=bash,title=Valid Status Transitions]
+pending    -> confirmed | cancelled
+confirmed  -> processing | cancelled
+processing -> shipped | cancelled
+shipped    -> delivered
+delivered  -> returned
+cancelled  -> (terminal)
+returned   -> (terminal)
+\end{lstlisting}

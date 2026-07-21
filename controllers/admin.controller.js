@@ -8,8 +8,6 @@ const { orderStatusUpdateEmail } = require('../utils/emailTemplates');
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
 
-// @desc    Get Admin Dashboard Stats
-// @route   GET /admin/dashboard
 exports.getDashboardStats = async (req, res, next) => {
   try {
     const now = new Date();
@@ -135,9 +133,6 @@ exports.getDashboardStats = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Get all orders
-// @route   GET /admin/orders
 exports.getAllOrders = async (req, res, next) => {
   try {
     const { status, paymentMethod, startDate, endDate, sort } = req.query;
@@ -173,9 +168,6 @@ exports.getAllOrders = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Get specific order details
-// @route   GET /admin/orders/:id
 exports.getOrderDetails = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id).populate('user', 'username email phone').lean();
@@ -185,9 +177,6 @@ exports.getOrderDetails = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Update order status
-// @route   PATCH /admin/orders/:id/status
 exports.updateOrderStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
@@ -246,9 +235,6 @@ exports.updateOrderStatus = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    View all active carts
-// @route   GET /admin/carts
 exports.getAllCarts = async (req, res, next) => {
   try {
     const { page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
@@ -271,9 +257,6 @@ exports.getAllCarts = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    View all wishlists
-// @route   GET /admin/wishlists
 exports.getAllWishlists = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
@@ -293,9 +276,6 @@ exports.getAllWishlists = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Get top wishlisted products
-// @route   GET /admin/wishlists/stats
 exports.getWishlistStats = async (req, res, next) => {
   try {
     const stats = await Wishlist.aggregate([

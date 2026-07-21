@@ -9,9 +9,6 @@ const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
 
 const VALID_ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
-
-// @desc    Create a new order
-// @route   POST /orders
 exports.createOrder = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -100,9 +97,6 @@ exports.createOrder = async (req, res, next) => {
     session.endSession();
   }
 };
-
-// @desc    Create Stripe Payment Intent
-// @route   POST /orders/create-payment-intent
 exports.createPaymentIntent = async (req, res, next) => {
   try {
     const { orderId } = req.body;
@@ -138,9 +132,6 @@ exports.createPaymentIntent = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Stripe Webhook
-// @route   POST /webhook
 exports.stripeWebhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
@@ -195,9 +186,6 @@ exports.stripeWebhook = async (req, res) => {
 
   res.status(200).json({ received: true });
 };
-
-// @desc    Get logged in user orders
-// @route   GET /orders/my
 exports.getMyOrders = async (req, res, next) => {
   try {
     const { status, page = 1 } = req.query;
@@ -222,9 +210,6 @@ exports.getMyOrders = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Get single order (owner only)
-// @route   GET /orders/my/:id
 exports.getMyOrder = async (req, res, next) => {
   try {
     const order = await Order.findOne({ _id: req.params.id, user: req.user.id }).lean();
@@ -234,9 +219,6 @@ exports.getMyOrder = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Cancel an order
-// @route   PATCH /orders/my/:id/cancel
 exports.cancelOrder = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();

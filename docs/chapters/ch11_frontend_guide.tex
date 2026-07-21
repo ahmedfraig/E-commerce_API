@@ -1,0 +1,519 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Frontend Integration Guide}
+% ════════════════════════════════════════════════════════════════════════════
+
+This chapter provides a comprehensive guide for frontend developers building a client application that consumes this API.
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Base Configuration}
+% ══════════════════════════════════════════════════════════════════════════
+
+\subsection{API Base URL}
+\begin{lstlisting}[language=bash]
+# Development
+http://localhost:5000
+
+# Production (Vercel)
+https://your-api.vercel.app
+\end{lstlisting}
+
+\subsection{Credentials \& Cookies}
+
+The API stores the \texttt{refreshToken} in an \textbf{HttpOnly Cookie}. Your HTTP client must be configured to send cookies:
+
+\begin{lstlisting}[language=JavaScript,title=Axios Setup (Recommended)]
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:5000',
+  withCredentials: true,  // CRITICAL: sends/receives cookies
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+export default api;
+\end{lstlisting}
+
+\begin{lstlisting}[language=JavaScript,title=Fetch API Alternative]
+fetch('http://localhost:5000/auth/login', {
+  method: 'POST',
+  credentials: 'include',  // CRITICAL
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password })
+});
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Authentication Flow}
+% ══════════════════════════════════════════════════════════════════════════
+
+\subsection{Registration Flow}
+
+\begin{enumerate}
+  \item \textbf{Step 1:} Call \texttt{POST /auth/register/send-otp} with \texttt{\{username, email, password\}}.
+  \item \textbf{Step 2:} User receives 6-digit OTP via email.
+  \item \textbf{Step 3:} Call \texttt{POST /auth/verify-otp} with \texttt{\{email, otp\}}.
+  \item \textbf{Step 4:} API returns \texttt{accessToken} + sets \texttt{refreshToken} cookie. User is now logged in.
+\end{enumerate}
+
+\begin{lstlisting}[language=JavaScript,title=Registration Implementation]
+// Step 1: Send OTP
+const registerUser = async (userData) => {
+  const res = await api.post('/auth/register/send-otp', {
+    username: userData.username,
+    email: userData.email,
+    password: userData.password,
+    phone: userData.phone // optional
+  });
+  return res.data; // { success: true, message: "OTP sent to email" }
+};
+
+// Step 2: Verify OTP
+const verifyOtp = async (email, otp) => {
+  const res = await api.post('/auth/verify-otp', { email, otp });
+  // Store the access token
+  localStorage.setItem('accessToken', res.data.accessToken);
+  return res.data; // { success, accessToken, user }
+};
+\end{lstlisting}
+
+\subsection{Login Flow}
+
+\begin{lstlisting}[language=JavaScript,title=Login Implementation]
+const login = async (email, password) => {
+  const res = await api.post('/auth/login', { email, password });
+  localStorage.setItem('accessToken', res.data.accessToken);
+  return res.data.user;
+};
+\end{lstlisting}
+
+\subsection{Setting the Authorization Header}
+
+\begin{lstlisting}[language=JavaScript,title=Request Interceptor]
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+\end{lstlisting}
+
+\subsection{Silent Token Refresh (Interceptor Pattern)}
+
+The \texttt{accessToken} expires after \textbf{15 minutes}. Build an Axios interceptor for automatic, silent renewal:
+
+\begin{lstlisting}[language=JavaScript,title=Response Interceptor for Token Refresh]
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) prom.reject(error);
+    else prom.resolve(token);
+  });
+  failedQueue = [];
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401
+        && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization
+            = `Bearer ${token}`;
+          return api(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Cookie is sent automatically
+        const res = await api.get('/auth/refresh-token');
+        const newToken = res.data.accessToken;
+        localStorage.setItem('accessToken', newToken);
+        api.defaults.headers.common.Authorization
+          = `Bearer ${newToken}`;
+        processQueue(null, newToken);
+        originalRequest.headers.Authorization
+          = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+\end{lstlisting}
+
+\subsection{Logout}
+\begin{lstlisting}[language=JavaScript]
+const logout = async () => {
+  await api.post('/auth/logout');
+  localStorage.removeItem('accessToken');
+  window.location.href = '/login';
+};
+\end{lstlisting}
+
+\subsection{Password Reset Flow}
+\begin{enumerate}
+  \item Call \texttt{POST /auth/forgot-password/send-otp} with \texttt{\{email\}}.
+  \item User clicks the link in their email: \texttt{FRONTEND\_URL/reset-password/<token>}.
+  \item Frontend extracts the token from the URL.
+  \item Call \texttt{POST /auth/forgot-password/verify-otp} with \texttt{\{otp: token, newPassword\}}.
+\end{enumerate}
+
+\begin{lstlisting}[language=JavaScript,title=Reset Password Page]
+// URL: /reset-password/:token
+const ResetPasswordPage = () => {
+  const token = useParams().token;
+  const handleSubmit = async (newPassword) => {
+    const res = await api.post(
+      '/auth/forgot-password/verify-otp',
+      { otp: token, newPassword }
+    );
+    localStorage.setItem(
+      'accessToken', res.data.accessToken
+    );
+    // User is now logged in with new password
+  };
+};
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Product Operations}
+% ══════════════════════════════════════════════════════════════════════════
+
+\begin{lstlisting}[language=JavaScript,title=Product API Calls]
+// Get all products with filters
+const getProducts = async (filters = {}) => {
+  const params = new URLSearchParams(filters);
+  const res = await api.get(`/products?${params}`);
+  return res.data;
+};
+
+// Search products
+const searchProducts = async (query) => {
+  const res = await api.get('/products/search', {
+    params: {
+      text: query.text,
+      category: query.category,
+      minPrice: query.minPrice,
+      maxPrice: query.maxPrice,
+      sort: query.sort,
+      page: query.page
+    }
+  });
+  return res.data;
+};
+
+// Get single product
+const getProduct = async (id) => {
+  const res = await api.get(`/products/${id}`);
+  return res.data.data;
+};
+
+// Admin: Create product (multipart/form-data)
+const createProduct = async (productData, imageFiles) => {
+  const formData = new FormData();
+  Object.keys(productData).forEach(key => {
+    formData.append(key, productData[key]);
+  });
+  imageFiles.forEach(file => {
+    formData.append('images', file);
+  });
+  const res = await api.post('/products', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return res.data;
+};
+
+// Add review (must have purchased + received product)
+const addReview = async (productId, rating, comment) => {
+  const res = await api.post(
+    `/products/${productId}/reviews`,
+    { rating, comment }
+  );
+  return res.data;
+};
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Cart Operations}
+% ══════════════════════════════════════════════════════════════════════════
+
+\begin{lstlisting}[language=JavaScript,title=Cart API Calls]
+// Get cart (auto-creates if doesn't exist)
+const getCart = async () => {
+  const res = await api.get('/carts');
+  return res.data.data;
+};
+
+// Add item to cart
+const addToCart = async (productId, quantity = 1) => {
+  const res = await api.post('/carts/items', {
+    productId, quantity
+  });
+  return res.data.data;
+};
+
+// Update quantity (sets absolute value)
+const updateQuantity = async (productId, quantity) => {
+  const res = await api.patch('/carts/items', {
+    productId, quantity
+  });
+  return res.data.data;
+};
+
+// Remove item
+const removeFromCart = async (productId) => {
+  const res = await api.delete(
+    `/carts/items/${productId}`
+  );
+  return res.data.data;
+};
+
+// Apply coupon
+const applyCoupon = async (code) => {
+  const res = await api.post('/carts/coupon', { code });
+  return res.data.data;
+};
+
+// Remove coupon
+const removeCoupon = async () => {
+  const res = await api.delete('/carts/coupon');
+  return res.data.data;
+};
+
+// Clear entire cart
+const clearCart = async () => {
+  const res = await api.delete('/carts/clear');
+  return res.data.data;
+};
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Order \& Checkout Flow}
+% ══════════════════════════════════════════════════════════════════════════
+
+\subsection{Cash on Delivery}
+
+\begin{lstlisting}[language=JavaScript,title=Cash Order Flow]
+const placeOrder = async (shippingAddress) => {
+  const res = await api.post('/orders', {
+    shippingAddress: {
+      fullName: 'Ahmed Fraig',
+      phone: '+201234567890',
+      country: 'Egypt',
+      city: 'Cairo',
+      address: '123 Main Street',
+      postalCode: '11765'
+    },
+    paymentMethod: 'cash',
+    customerNote: 'Ring the bell twice'
+  });
+  return res.data.data; // Order object
+};
+\end{lstlisting}
+
+\subsection{Stripe Payment Flow}
+
+\begin{lstlisting}[language=JavaScript,title=Stripe Checkout Flow]
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe }
+  from '@stripe/react-stripe-js';
+
+const stripePromise = loadStripe('pk_test_...');
+
+// Step 1: Create order with paymentMethod = 'stripe'
+const order = await api.post('/orders', {
+  shippingAddress: { ... },
+  paymentMethod: 'stripe'
+});
+const orderId = order.data.data._id;
+
+// Step 2: Create payment intent
+const intent = await api.post(
+  '/orders/create-payment-intent',
+  { orderId }
+);
+const clientSecret = intent.data.clientSecret;
+
+// Step 3: Confirm payment with Stripe.js
+const stripe = useStripe();
+const { error, paymentIntent } =
+  await stripe.confirmCardPayment(clientSecret, {
+    payment_method: {
+      card: cardElement,
+      billing_details: { name: 'Ahmed Fraig' }
+    }
+  });
+
+if (error) {
+  console.error('Payment failed:', error.message);
+} else if (paymentIntent.status === 'succeeded') {
+  // Stripe webhook will update order status
+  // Redirect to order confirmation page
+}
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Wishlist Operations}
+% ══════════════════════════════════════════════════════════════════════════
+
+\begin{lstlisting}[language=JavaScript,title=Wishlist API Calls]
+const getWishlist = async () => {
+  const res = await api.get('/wishlists/my');
+  return res.data.data;
+};
+
+const addToWishlist = async (productId) => {
+  const res = await api.post(
+    `/wishlists/add/${productId}`
+  );
+  return res.data.data;
+};
+
+const removeFromWishlist = async (productId) => {
+  const res = await api.delete(
+    `/wishlists/remove/${productId}`
+  );
+  return res.data.data;
+};
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Error Handling}
+% ══════════════════════════════════════════════════════════════════════════
+
+\begin{lstlisting}[language=JavaScript,title=Global Error Handler]
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const message = error.response?.data?.message
+      || 'An unexpected error occurred';
+    const status = error.response?.status;
+
+    // Handle specific status codes
+    switch (status) {
+      case 400: // Validation error
+        showToast(message, 'error');
+        break;
+      case 401: // Unauthorized (handled by refresh)
+        break;
+      case 403: // Forbidden
+        showToast('Access denied', 'error');
+        break;
+      case 404: // Not found
+        showToast(message, 'warning');
+        break;
+      case 429: // Rate limited
+        showToast(
+          'Too many requests. Please wait.', 'warning'
+        );
+        break;
+      default:
+        showToast(message, 'error');
+    }
+
+    return Promise.reject(error);
+  }
+);
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Complete API Quick Reference}
+% ══════════════════════════════════════════════════════════════════════════
+
+\begin{longtable}{@{}llp{5.5cm}l@{}}
+  \toprule
+  \textbf{Method} & \textbf{Endpoint} & \textbf{Description} & \textbf{Access} \\
+  \midrule
+  \multicolumn{4}{@{}l}{\textbf{Authentication (/auth)}} \\
+  \midrule
+  POST   & /auth/register/send-otp      & Register + send OTP          & Public \\
+  POST   & /auth/verify-otp             & Verify OTP + activate        & Public \\
+  POST   & /auth/login                  & Login                        & Public \\
+  GET    & /auth/refresh-token          & Refresh access token         & Public \\
+  POST   & /auth/logout                 & Logout                       & User \\
+  POST   & /auth/forgot-password/send-otp & Send reset link            & Public \\
+  POST   & /auth/forgot-password/verify-otp & Reset password           & Public \\
+  GET    & /auth/me                     & Get current user             & User \\
+  PATCH  & /auth/change-role/:id        & Change user role             & Admin \\
+  \midrule
+  \multicolumn{4}{@{}l}{\textbf{Users (/users)}} \\
+  \midrule
+  POST   & /users/add                   & Create user (admin)          & Admin \\
+  POST   & /users/change-password       & Change password              & User \\
+  GET    & /users/all                   & List all users               & Admin \\
+  GET    & /users/:id                   & Get user by ID               & Admin \\
+  PATCH  & /users/:id                   & Update user profile          & User/Admin \\
+  DELETE & /users/:id                   & Delete user                  & Admin \\
+  \midrule
+  \multicolumn{4}{@{}l}{\textbf{Products (/products)}} \\
+  \midrule
+  GET    & /products                    & List products + filters      & Public \\
+  GET    & /products/search             & Full-text search             & Public \\
+  GET    & /products/:id                & Get product details          & Public \\
+  POST   & /products                    & Create product               & Admin \\
+  PUT    & /products/update/:id         & Update product               & Admin \\
+  DELETE & /products/:id                & Soft delete product          & Admin \\
+  POST   & /products/:id/reviews        & Add review                   & User \\
+  DELETE & /products/:id/reviews/:rid   & Delete review                & User/Admin \\
+  GET    & /products/:id/reviews        & Get product reviews          & Public \\
+  \midrule
+  \multicolumn{4}{@{}l}{\textbf{Cart (/carts)}} \\
+  \midrule
+  GET    & /carts                       & Get user cart                 & User \\
+  POST   & /carts/items                 & Add item to cart              & User \\
+  PATCH  & /carts/items                 & Update item quantity          & User \\
+  DELETE & /carts/items/:productId      & Remove item                   & User \\
+  POST   & /carts/coupon                & Apply coupon                  & User \\
+  DELETE & /carts/coupon                & Remove coupon                 & User \\
+  DELETE & /carts/clear                 & Clear cart                    & User \\
+  \midrule
+  \multicolumn{4}{@{}l}{\textbf{Orders (/orders)}} \\
+  \midrule
+  POST   & /orders                      & Create order (transactional)  & User \\
+  POST   & /orders/create-payment-intent & Stripe payment intent        & User \\
+  GET    & /orders/my                   & Get my orders                 & User \\
+  GET    & /orders/my/:id               & Get order details             & User \\
+  PATCH  & /orders/my/:id/cancel        & Cancel order                  & User \\
+  \midrule
+  \multicolumn{4}{@{}l}{\textbf{Wishlists (/wishlists)}} \\
+  \midrule
+  GET    & /wishlists/my                & Get wishlist                  & User \\
+  POST   & /wishlists/add/:productId    & Add to wishlist               & User \\
+  DELETE & /wishlists/remove/:productId & Remove from wishlist          & User \\
+  DELETE & /wishlists/clear             & Clear wishlist                & User \\
+  \midrule
+  \multicolumn{4}{@{}l}{\textbf{Admin (/admin)}} \\
+  \midrule
+  GET    & /admin/dashboard             & Dashboard analytics           & Admin \\
+  GET    & /admin                       & All orders + filters          & Admin \\
+  GET    & /admin/:id                   & Order details                 & Admin \\
+  PATCH  & /admin/:id/status            & Update order status           & Admin \\
+  GET    & /admin/carts                 & All user carts                & Admin \\
+  GET    & /admin/wishlists             & All user wishlists            & Admin \\
+  GET    & /admin/wishlists/stats       & Top wishlisted products       & Admin \\
+  \midrule
+  \multicolumn{4}{@{}l}{\textbf{Webhook}} \\
+  \midrule
+  POST   & /webhook                     & Stripe payment webhook        & Stripe \\
+  \bottomrule
+\end{longtable}

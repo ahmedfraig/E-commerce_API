@@ -3,9 +3,6 @@ const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
-
-// @desc    Add a new user (Admin)
-// @route   POST /users/add
 exports.addUser = async (req, res, next) => {
   try {
     const existingUser = await User.findOne({ email: req.body.email });
@@ -43,9 +40,6 @@ exports.addUser = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Get all users (Admin)
-// @route   GET /users/all
 exports.getUsers = async (req, res, next) => {
   try {
     const { search, role, isverify, isVerified, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
@@ -90,9 +84,6 @@ exports.getUsers = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Get a single user by ID (Admin)
-// @route   GET /users/:id
 exports.getUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
@@ -102,9 +93,6 @@ exports.getUser = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Update user data (User)
-// @route   PATCH /users/:id
 exports.updateUser = async (req, res, next) => {
   try {
     if (Object.keys(req.body).length === 0 && !req.file) {
@@ -181,9 +169,6 @@ exports.updateUser = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Delete user (Admin)
-// @route   DELETE /users/:id
 exports.deleteUser = async (req, res, next) => {
   try {
     if (req.user.id === req.params.id) {
@@ -203,9 +188,6 @@ exports.deleteUser = async (req, res, next) => {
     next(error);
   }
 };
-
-// @desc    Change user password
-// @route   POST /users/change-password
 exports.changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;

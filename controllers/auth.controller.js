@@ -166,9 +166,6 @@ exports.resetPassword = async (req, res, next) => {
 exports.getMe = async (req, res, next) => {
   res.status(200).json({ success: true, data: req.user });
 };
-
-// @desc    Change user role (Admin)
-// @route   PATCH /auth/change-role/:id
 exports.changeRole = async (req, res, next) => {
   try {
     const { role } = req.body;

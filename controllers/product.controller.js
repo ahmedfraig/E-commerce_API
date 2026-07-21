@@ -42,11 +42,7 @@ const uploadImages = async (files) => {
   }
 
   return successfulUploads;
-};
-
-// @desc    Get all active products
-// @route   GET /products
-exports.getProducts = async (req, res, next) => {
+};exports.getProducts = async (req, res, next) => {
   try {
     const { category, brand, minPrice, maxPrice, sort, featured, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
     const page = parseInt(pageQuery, 10);
@@ -82,11 +78,7 @@ exports.getProducts = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
-
-// @desc    Search products
-// @route   GET /products/search
-exports.searchProducts = async (req, res, next) => {
+};exports.searchProducts = async (req, res, next) => {
   try {
     const { text, category, subcategory, brand, tags, minPrice, maxPrice, sort, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
     const page = parseInt(pageQuery, 10);
@@ -120,11 +112,7 @@ exports.searchProducts = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
-
-// @desc    Get single product
-// @route   GET /products/:id
-exports.getProduct = async (req, res, next) => {
+};exports.getProduct = async (req, res, next) => {
   try {
     const product = await Product.findOne({ _id: req.params.id, isActive: true }).lean();
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
@@ -132,11 +120,7 @@ exports.getProduct = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
-
-// @desc    Create product
-// @route   POST /products
-exports.createProduct = async (req, res, next) => {
+};exports.createProduct = async (req, res, next) => {
   try {
     req.body.createdBy = req.user.id;
 
@@ -171,12 +155,7 @@ exports.createProduct = async (req, res, next) => {
     }
     next(error);
   }
-};
-
-
-// @desc    Update product
-// @route   PUT /products/update/:id
-exports.updateProduct = async (req, res, next) => {
+};exports.updateProduct = async (req, res, next) => {
   // Track uploaded Cloudinary images so we can roll them back on any error
   let newImages = [];
   try {
@@ -253,11 +232,7 @@ exports.updateProduct = async (req, res, next) => {
     }
     next(error);
   }
-};
-
-// @desc    Delete product (Soft Delete)
-// @route   DELETE /products/:id
-exports.deleteProduct = async (req, res, next) => {
+};exports.deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
@@ -269,11 +244,7 @@ exports.deleteProduct = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
-
-// @desc    Add review
-// @route   POST /products/:id/reviews
-exports.addReview = async (req, res, next) => {
+};exports.addReview = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
@@ -307,11 +278,7 @@ exports.addReview = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
-
-// @desc    Delete review
-// @route   DELETE /products/:id/reviews/:rid
-exports.deleteReview = async (req, res, next) => {
+};exports.deleteReview = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
@@ -331,11 +298,7 @@ exports.deleteReview = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
-
-// @desc    Get all reviews
-// @route   GET /products/:id/reviews
-exports.getReviews = async (req, res, next) => {
+};exports.getReviews = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id).select('reviews').lean();
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));

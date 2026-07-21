@@ -1,0 +1,165 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Users API}
+% ════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}
+All user routes are protected (require Bearer token). Prefix: \texttt{/users}.
+\end{notebox}
+
+% ── 1. Add User ────────────────────────────────────────────────────────────
+\section{Add User (Admin)}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/users/add} \\
+  \textbf{Access:} & Admin \\
+  \textbf{Content-Type:} & \texttt{multipart/form-data} \\
+\end{tabularx}
+
+\subsection*{Request Body (form-data)}
+\begin{longtable}{@{}llp{8cm}@{}}
+  \toprule
+  \textbf{Field} & \textbf{Type} & \textbf{Notes} \\
+  \midrule
+  \texttt{username} & text & Required, 2--50 chars \\
+  \texttt{email}    & text & Required, valid email \\
+  \texttt{password} & text & Required, min 8, uppercase+lowercase+digit \\
+  \texttt{phone}    & text & Optional \\
+  \texttt{role}     & text & Optional: ``admin'' or ``customer'' \\
+  \texttt{avatar}   & file & Optional, image only, max 5MB \\
+  \bottomrule
+\end{longtable}
+
+\subsection*{Success Response (201)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "data": {
+    "_id": "...",
+    "username": "New User",
+    "email": "newuser@example.com",
+    "role": "customer",
+    "isVerified": true,
+    "needsPasswordChange": true,
+    "avatar": { "public_id": "ecommerce/users/...", "url": "https://..." },
+    "createdAt": "...",
+    "updatedAt": "..."
+  }
+}
+\end{lstlisting}
+
+\begin{notebox}
+Admin-created users are auto-verified and flagged with \texttt{needsPasswordChange: true}. They are forced to change their password on first login (enforced by auth middleware).
+\end{notebox}
+
+% ── 2. Change Password ────────────────────────────────────────────────────
+\section{Change Password}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/users/change-password} \\
+  \textbf{Access:} & User (any authenticated user) \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{
+  "currentPassword": "OldPass123",
+  "newPassword": "NewSecure456"
+}
+\end{lstlisting}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{ "success": true, "message": "Password updated successfully" }
+\end{lstlisting}
+
+\subsection*{Error Responses}
+\begin{longtable}{@{}clp{8cm}@{}}
+  \toprule
+  \textbf{Status} & \textbf{Condition} & \textbf{Message} \\
+  \midrule
+  400 & Same password & ``New password must be different from the current password'' \\
+  401 & Wrong current password & ``Incorrect current password'' \\
+  \bottomrule
+\end{longtable}
+
+% ── 3. Get All Users ──────────────────────────────────────────────────────
+\section{Get All Users (Admin)}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/users/all} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+\subsection*{Query Parameters}
+\begin{longtable}{@{}llp{8cm}@{}}
+  \toprule
+  \textbf{Param} & \textbf{Default} & \textbf{Description} \\
+  \midrule
+  \texttt{page}       & 1   & Page number \\
+  \texttt{limit}      & 10  & Items per page (max 100) \\
+  \texttt{search}     & --- & Search by username or email (regex, case-insensitive) \\
+  \texttt{role}       & --- & Filter: ``admin'' or ``customer'' \\
+  \texttt{isVerified} & --- & Filter: ``true'' or ``false'' \\
+  \bottomrule
+\end{longtable}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "count": 10,
+  "pagination": { "total": 45, "page": 1, "pages": 5 },
+  "data": [ { ... }, { ... } ]
+}
+\end{lstlisting}
+
+% ── 4. Get Single User ────────────────────────────────────────────────────
+\section{Get Single User (Admin)}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/users/:id} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{ "success": true, "data": { "_id": "...", "username": "...", ... } }
+\end{lstlisting}
+
+% ── 5. Update User ────────────────────────────────────────────────────────
+\section{Update User}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{PATCH} \\
+  \textbf{URL:}    & \apipath{/users/:id} \\
+  \textbf{Access:} & User (own profile) / Admin (any user) \\
+  \textbf{Content-Type:} & \texttt{multipart/form-data} \\
+\end{tabularx}
+
+\textbf{Customer allowed fields:} \texttt{username}, \texttt{phone}, \texttt{avatar}, \texttt{addresses}
+
+\textbf{Admin allowed fields:} All except \texttt{role}, \texttt{isVerified}, \texttt{password}
+
+\begin{warningbox}
+Password changes are blocked via this route. Use \texttt{POST /users/change-password} instead. Avatar upload automatically deletes the old Cloudinary image.
+\end{warningbox}
+
+% ── 6. Delete User ────────────────────────────────────────────────────────
+\section{Delete User (Admin)}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{DELETE} \\
+  \textbf{URL:}    & \apipath{/users/:id} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{ "success": true, "data": {} }
+\end{lstlisting}
+
+Deletes user and their Cloudinary avatar. Admin cannot delete themselves.

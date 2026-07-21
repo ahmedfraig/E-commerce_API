@@ -1,0 +1,265 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Authentication API}
+% ════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}
+All authentication endpoints are prefixed with \texttt{/auth}. Public routes have no token requirement. Protected routes require \texttt{Authorization: Bearer <accessToken>} header.
+\end{notebox}
+
+% ── 1. Register ────────────────────────────────────────────────────────────
+\section{Register --- Send OTP}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/auth/register/send-otp} \\
+  \textbf{Access:} & Public \\
+  \textbf{Validation:} & \texttt{registerSchema} (Joi) \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{
+  "username": "Ahmed Fraig",
+  "email": "ahmed@example.com",
+  "password": "MyPass123",
+  "phone": "+201234567890"
+}
+\end{lstlisting}
+
+\textbf{Validation Rules:}
+\begin{itemize}
+  \item \texttt{username} --- Required, 2--50 characters
+  \item \texttt{email} --- Required, valid email, converted to lowercase
+  \item \texttt{password} --- Required, min 8 chars, must contain uppercase + lowercase + digit
+  \item \texttt{phone} --- Optional, pattern: \texttt{/\^{}[+]?[\textbackslash d\textbackslash s\textbackslash -()]\{7,15\}\$/}
+\end{itemize}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "message": "OTP sent to email"
+}
+\end{lstlisting}
+
+\subsection*{Error Responses}
+\begin{longtable}{@{}clp{7cm}@{}}
+  \toprule
+  \textbf{Status} & \textbf{Condition} & \textbf{Message} \\
+  \midrule
+  400 & Email already registered & ``Email already exists'' \\
+  400 & OTP already sent (not expired) & ``Otp already exists check your email'' \\
+  400 & Validation failure & Joi error messages \\
+  \bottomrule
+\end{longtable}
+
+\subsection*{Business Logic}
+\begin{enumerate}
+  \item Checks if user already exists in DB.
+  \item Checks for an existing non-expired OTP for this email (prevents spam).
+  \item Generates 6-digit OTP, hashes it with SHA-256, stores in OTP collection with 10-minute TTL.
+  \item Sends OTP via email using Nodemailer.
+\end{enumerate}
+
+% ── 2. Verify OTP ─────────────────────────────────────────────────────────
+\section{Verify OTP}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/auth/verify-otp} \\
+  \textbf{Access:} & Public \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{
+  "email": "ahmed@example.com",
+  "otp": "123456"
+}
+\end{lstlisting}
+
+\subsection*{Success Response (201)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "accessToken": "eyJhbGciOi...",
+  "user": {
+    "_id": "...",
+    "username": "Ahmed Fraig",
+    "email": "ahmed@example.com",
+    "role": "customer",
+    "isVerified": true,
+    "addresses": [],
+    "createdAt": "...",
+    "updatedAt": "..."
+  }
+}
+\end{lstlisting}
+
+\begin{notebox}
+A \texttt{refreshToken} cookie is also set as HttpOnly with 30-day expiry.
+\end{notebox}
+
+% ── 3. Login ───────────────────────────────────────────────────────────────
+\section{Login}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/auth/login} \\
+  \textbf{Access:} & Public \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{
+  "email": "ahmed@example.com",
+  "password": "MyPass123"
+}
+\end{lstlisting}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "accessToken": "eyJhbGciOi...",
+  "user": { ... }
+}
+\end{lstlisting}
+
+\subsection*{Error Responses}
+\begin{longtable}{@{}clp{7cm}@{}}
+  \toprule
+  \textbf{Status} & \textbf{Condition} & \textbf{Message} \\
+  \midrule
+  400 & Missing fields & ``Please provide email and password'' \\
+  401 & Wrong email/password & ``Invalid credentials'' \\
+  403 & Email not verified & ``Please verify your email first'' \\
+  \bottomrule
+\end{longtable}
+
+% ── 4. Refresh Token ───────────────────────────────────────────────────────
+\section{Refresh Token}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/auth/refresh-token} \\
+  \textbf{Access:} & Public (cookie-based) \\
+\end{tabularx}
+
+\begin{notebox}
+No body required. The \texttt{refreshToken} cookie is sent automatically by the browser.
+\end{notebox}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "accessToken": "eyJhbGciOi...(new token)...",
+  "user": { ... }
+}
+\end{lstlisting}
+
+% ── 5. Logout ──────────────────────────────────────────────────────────────
+\section{Logout}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/auth/logout} \\
+  \textbf{Access:} & User (Protected) \\
+\end{tabularx}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{ "success": true, "message": "Logged out successfully" }
+\end{lstlisting}
+
+Clears the \texttt{refreshToken} cookie.
+
+% ── 6. Forgot Password ────────────────────────────────────────────────────
+\section{Forgot Password --- Send Reset Link}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/auth/forgot-password/send-otp} \\
+  \textbf{Access:} & Public \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{ "email": "ahmed@example.com" }
+\end{lstlisting}
+
+\subsection*{Response (200 --- always)}
+\begin{lstlisting}[language=json]
+{ "success": true, "message": "Password reset link sent to email" }
+\end{lstlisting}
+
+\begin{warningbox}
+Returns 200 even if email doesn't exist (anti-enumeration). The reset link is sent to \texttt{FRONTEND\_URL/reset-password/<token>}.
+\end{warningbox}
+
+% ── 7. Reset Password ─────────────────────────────────────────────────────
+\section{Reset Password --- Verify Token}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/auth/forgot-password/verify-otp} \\
+  \textbf{Access:} & Public \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{
+  "otp": "raw_reset_token_from_url",
+  "newPassword": "NewSecure123"
+}
+\end{lstlisting}
+
+\subsection*{Success Response (200)}
+Returns new access token + refresh cookie (auto-login after reset).
+
+% ── 8. Get Me ──────────────────────────────────────────────────────────────
+\section{Get Current User}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/auth/me} \\
+  \textbf{Access:} & User (Protected) \\
+\end{tabularx}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "data": {
+    "_id": "...",
+    "username": "Ahmed Fraig",
+    "email": "ahmed@example.com",
+    "role": "customer",
+    "avatar": { "public_id": null, "url": "..." },
+    "addresses": [],
+    "isVerified": true,
+    "needsPasswordChange": false,
+    "createdAt": "...",
+    "updatedAt": "..."
+  }
+}
+\end{lstlisting}
+
+% ── 9. Change Role ─────────────────────────────────────────────────────────
+\section{Change User Role (Admin)}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{PATCH} \\
+  \textbf{URL:}    & \apipath{/auth/change-role/:id} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{ "role": "admin" }
+\end{lstlisting}
+
+\begin{warningbox}
+Admin cannot change their own role (self-protection guard).
+\end{warningbox}

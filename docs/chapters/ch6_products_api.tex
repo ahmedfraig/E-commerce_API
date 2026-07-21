@@ -1,0 +1,240 @@
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{Products API}
+% ════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}
+Prefix: \texttt{/products}. Public routes (GET) require no token. Write operations require Admin. Reviews require authenticated User.
+\end{notebox}
+
+% ── 1. Get All Products ───────────────────────────────────────────────────
+\section{Get All Products}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/products} \\
+  \textbf{Access:} & Public \\
+\end{tabularx}
+
+\subsection*{Query Parameters}
+\begin{longtable}{@{}llp{7.5cm}@{}}
+  \toprule
+  \textbf{Param} & \textbf{Default} & \textbf{Description} \\
+  \midrule
+  \texttt{page}     & 1   & Page number \\
+  \texttt{limit}    & 10  & Items per page (max 100) \\
+  \texttt{category} & --- & Filter by category (exact match, lowercase) \\
+  \texttt{brand}    & --- & Filter by brand \\
+  \texttt{featured} & --- & Set ``true'' to show featured only \\
+  \texttt{minPrice} & --- & Minimum price \\
+  \texttt{maxPrice} & --- & Maximum price \\
+  \texttt{sort}     & \texttt{-createdAt} & Comma-separated sort fields (e.g., \texttt{price,-averageRating}) \\
+  \bottomrule
+\end{longtable}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "count": 10,
+  "total": 85,
+  "data": [
+    {
+      "_id": "...",
+      "name": "Wireless Headphones",
+      "slug": "wireless-headphones",
+      "shortDescription": "Premium noise-cancelling...",
+      "price": 299.99,
+      "discountPrice": 249.99,
+      "stock": 50,
+      "images": [{ "public_id": "...", "url": "https://..." }],
+      "category": "electronics",
+      "brand": "Sony",
+      "averageRating": 4.5,
+      "numReviews": 12,
+      "featured": true,
+      "isActive": true,
+      "createdAt": "..."
+    }
+  ]
+}
+\end{lstlisting}
+
+\begin{tipbox}
+Reviews are excluded from list responses via \texttt{.select('-reviews')} for performance. Use \texttt{GET /products/:id} for full details, or \texttt{GET /products/:id/reviews} for reviews.
+\end{tipbox}
+
+% ── 2. Search Products ────────────────────────────────────────────────────
+\section{Search Products}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/products/search} \\
+  \textbf{Access:} & Public \\
+\end{tabularx}
+
+\subsection*{Additional Query Parameters}
+\begin{longtable}{@{}llp{7.5cm}@{}}
+  \toprule
+  \textbf{Param} & \textbf{Type} & \textbf{Description} \\
+  \midrule
+  \texttt{text}        & String & Full-text search (name, description, brand) \\
+  \texttt{subcategory} & String & Filter by subcategory \\
+  \texttt{tags}        & String & Comma-separated tags (matches any) \\
+  \bottomrule
+\end{longtable}
+
+\textbf{Example:} \texttt{/products/search?text=headphones\&category=electronics\&minPrice=100\&maxPrice=500}
+
+% ── 3. Get Single Product ─────────────────────────────────────────────────
+\section{Get Single Product}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/products/:id} \\
+  \textbf{Access:} & Public \\
+\end{tabularx}
+
+Returns full product object including reviews. Only returns active products.
+
+% ── 4. Create Product ─────────────────────────────────────────────────────
+\section{Create Product (Admin)}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/products} \\
+  \textbf{Access:} & Admin \\
+  \textbf{Content-Type:} & \texttt{multipart/form-data} \\
+  \textbf{Max files:} & 5 images \\
+\end{tabularx}
+
+\subsection*{Request Body (form-data)}
+\begin{longtable}{@{}llp{7cm}@{}}
+  \toprule
+  \textbf{Field} & \textbf{Required} & \textbf{Notes} \\
+  \midrule
+  \texttt{name}             & Yes & 3--200 chars \\
+  \texttt{shortDescription} & Yes & 10--500 chars \\
+  \texttt{description}      & Yes & Min 20 chars \\
+  \texttt{price}            & Yes & Number, min 0 \\
+  \texttt{discountPrice}    & No  & Must be less than price \\
+  \texttt{stock}            & Yes & Integer, min 0 \\
+  \texttt{sku}              & No  & Must be unique \\
+  \texttt{category}         & Yes & Stored lowercase \\
+  \texttt{subcategory}      & No  & --- \\
+  \texttt{brand}            & No  & --- \\
+  \texttt{tags}             & No  & Comma-separated string or array \\
+  \texttt{featured}         & No  & Boolean \\
+  \texttt{images}           & No  & Image files (jpg, png, webp), max 5MB each \\
+  \bottomrule
+\end{longtable}
+
+\subsection*{Image Upload Logic}
+\begin{enumerate}
+  \item Files are temporarily saved to OS temp directory via Multer.
+  \item Each file is uploaded to Cloudinary (\texttt{ecommerce/products} folder).
+  \item If any upload fails, all successful uploads are rolled back (deleted from Cloudinary).
+  \item Local temp files are cleaned up in all cases.
+\end{enumerate}
+
+\subsection*{Success Response (201)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "data": {
+    "_id": "...",
+    "name": "Wireless Headphones",
+    "slug": "wireless-headphones",
+    "images": [
+      { "public_id": "ecommerce/products/abc123", "url": "https://res.cloudinary.com/..." }
+    ],
+    "createdBy": "admin_user_id",
+    ...
+  }
+}
+\end{lstlisting}
+
+% ── 5. Update Product ─────────────────────────────────────────────────────
+\section{Update Product (Admin)}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{PUT} \\
+  \textbf{URL:}    & \apipath{/products/update/:id} \\
+  \textbf{Access:} & Admin \\
+  \textbf{Content-Type:} & \texttt{multipart/form-data} \\
+\end{tabularx}
+
+All fields are optional. Supports adding new images and deleting existing ones in a single request.
+
+\subsection*{Deleting Images}
+Send a \texttt{deletedImages} field as a JSON string array of Cloudinary public IDs:
+
+\begin{lstlisting}[language=json,title=deletedImages field value]
+["ecommerce/products/old_image_1", "ecommerce/products/old_image_2"]
+\end{lstlisting}
+
+% ── 6. Delete Product ─────────────────────────────────────────────────────
+\section{Delete Product (Admin) --- Soft Delete}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{DELETE} \\
+  \textbf{URL:}    & \apipath{/products/:id} \\
+  \textbf{Access:} & Admin \\
+\end{tabularx}
+
+Sets \texttt{isActive = false}. Product is hidden from public queries but remains in DB.
+
+% ── 7. Add Review ─────────────────────────────────────────────────────────
+\section{Add Review}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{POST} \\
+  \textbf{URL:}    & \apipath{/products/:id/reviews} \\
+  \textbf{Access:} & User (Protected) \\
+\end{tabularx}
+
+\subsection*{Request Body}
+\begin{lstlisting}[language=json]
+{ "rating": 5, "comment": "Excellent sound quality!" }
+\end{lstlisting}
+
+\textbf{Business Rules:}
+\begin{itemize}
+  \item User must have a \textbf{delivered} order containing this product.
+  \item User can only review a product \textbf{once}.
+  \item Product must be active.
+  \item Average rating is recalculated after each review.
+\end{itemize}
+
+% ── 8. Delete Review ──────────────────────────────────────────────────────
+\section{Delete Review}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{DELETE} \\
+  \textbf{URL:}    & \apipath{/products/:id/reviews/:rid} \\
+  \textbf{Access:} & Review owner or Admin \\
+\end{tabularx}
+
+% ── 9. Get Reviews ────────────────────────────────────────────────────────
+\section{Get All Reviews}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \textbf{Method:} & \apimethod{GET} \\
+  \textbf{URL:}    & \apipath{/products/:id/reviews} \\
+  \textbf{Access:} & Public \\
+\end{tabularx}
+
+\subsection*{Success Response (200)}
+\begin{lstlisting}[language=json]
+{
+  "success": true,
+  "data": [
+    {
+      "user": "user_id",
+      "rating": 5,
+      "comment": "Excellent sound quality!",
+      "createdAt": "...",
+      "_id": "review_id"
+    }
+  ]
+}
+\end{lstlisting}
