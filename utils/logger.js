@@ -27,8 +27,6 @@ const transports = [
   }),
 ];
 
-// Only create logs directory and file transports when NOT in production (i.e. local dev)
-// Vercel and other serverless platforms have a read-only filesystem
 if (process.env.LOG_TO_FILE === 'true' || process.env.NODE_ENV !== 'production') {
   const logsDir = path.join(__dirname, '../logs');
   if (!fs.existsSync(logsDir)) {
