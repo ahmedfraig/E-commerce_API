@@ -1,10 +1,10 @@
 const multer = require('multer');
 const AppError = require('../utils/AppError');
+const logger = require('../utils/logger');
 
 const errorHandler = (err, req, res, next) => {
   let error = err;
 
-  // If the error is not an operational AppError, convert known error types
   if (!error.isOperational) {
 
     // Multer file upload errors
@@ -20,12 +20,10 @@ const errorHandler = (err, req, res, next) => {
       }
     }
 
-    // Wrong image type from our custom fileFilter
     else if (err.message === 'Not an image! Please upload only images.') {
       error = new AppError('Invalid file type. Please upload only image files (jpg, png, webp, etc.).', 400);
     }
 
-    // Malformed JSON body
     else if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
       error = new AppError('Invalid JSON format in request body. Please check your request syntax.', 400);
     }
@@ -57,8 +55,7 @@ const errorHandler = (err, req, res, next) => {
     }
 
     else {
-      // Truly unknown bug — log it and hide details from client
-      console.error('UNHANDLED ERROR:', err);
+      logger.error('UNHANDLED ERROR', { message: err.message, stack: err.stack });
       error = new AppError('An unexpected error occurred. Please try again later.', 500);
     }
   }

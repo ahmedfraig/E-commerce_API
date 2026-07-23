@@ -7,6 +7,7 @@ const sendEmail = require('../utils/sendEmail');
 const { orderStatusUpdateEmail } = require('../utils/emailTemplates');
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
+const logger = require('../utils/logger');
 
 exports.getDashboardStats = async (req, res, next) => {
   try {
@@ -65,9 +66,9 @@ exports.getDashboardStats = async (req, res, next) => {
         { $group: { _id: '$status', count: { $sum: 1 } } }
       ]),
       // Total customers
-      User.countDocuments({ role: 'customer' }),
+      User.countDocuments({ role: 'customer', isActive: { $ne: false } }),
       // Total admins
-      User.countDocuments({ role: 'admin' }),
+      User.countDocuments({ role: 'admin', isActive: { $ne: false } }),
       // Total products
       Product.countDocuments(),
       // Top products by sales
@@ -121,7 +122,7 @@ exports.getDashboardStats = async (req, res, next) => {
     const lastMonthRev = lastMonthRevenueAgg[0]?.total || 0;
     const growthPercent = lastMonthRev > 0
       ? Math.round(((thisMonthRev - lastMonthRev) / lastMonthRev) * 100)
-      : 0;
+      : (thisMonthRev > 0 ? 100 : 0);
 
     const formattedDailyRevenue = [];
     for (let i = 6; i >= 0; i--) {
@@ -231,9 +232,15 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (status === 'cancelled') {
       order.cancelledAt = Date.now();
 
-      // Restore stock for each item
-      for (const item of order.items) {
-        await Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } });
+      // Restore stock for each item using bulk operations for better performance
+      if (order.items && order.items.length > 0) {
+        const bulkOps = order.items.map(item => ({
+          updateOne: {
+            filter: { _id: item.product },
+            update: { $inc: { stock: item.quantity } }
+          }
+        }));
+        await Product.bulkWrite(bulkOps);
       }
 
       // Mark payment as refunded if already paid
@@ -253,7 +260,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         html
       });
     } catch (err) {
-      console.log('Email could not be sent', err);
+      logger.warn('Order status update email could not be sent', { orderId: order._id, error: err.message });
     }
 
     res.status(200).json({ success: true, data: order });

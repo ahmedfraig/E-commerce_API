@@ -33,21 +33,29 @@ exports.addItemToCart = async (req, res, next) => {
     if (!product) throw new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404);
     if (!product.isActive) throw new AppError('This product is no longer available', 400);
 
+    let parsedQuantity = 1;
+    if (quantity !== undefined) {
+      parsedQuantity = parseInt(quantity, 10);
+      if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+        throw new AppError('Quantity must be a valid number greater than 0', 400);
+      }
+    }
+
     const existingItemIndex = cart.items.findIndex(item => item.product.toString() === productId);
 
     if (existingItemIndex > -1) {
-      const newTotal = cart.items[existingItemIndex].quantity + Number(quantity);
+      const newTotal = cart.items[existingItemIndex].quantity + parsedQuantity;
       if (product.stock < newTotal) throw new AppError(MESSAGES.NOT_ENOUGH_STOCK, 400);
       cart.items[existingItemIndex].quantity = newTotal;
       cart.items[existingItemIndex].price = product.discountPrice > 0 ? product.discountPrice : product.price;
     } else {
-      if (product.stock < Number(quantity)) throw new AppError(MESSAGES.NOT_ENOUGH_STOCK, 400);
+      if (product.stock < parsedQuantity) throw new AppError(MESSAGES.NOT_ENOUGH_STOCK, 400);
       cart.items.push({
         product: product._id,
         name: product.name,
         image: product.images[0]?.url || 'default',
         price: product.discountPrice > 0 ? product.discountPrice : product.price,
-        quantity: Number(quantity)
+        quantity: parsedQuantity
       });
     }
 
@@ -61,6 +69,14 @@ exports.addItemToCart = async (req, res, next) => {
 exports.updateItemQuantity = async (req, res, next) => {
   try {
     const { productId, quantity } = req.body;
+    if (quantity === undefined) {
+      throw new AppError('Quantity is required', 400);
+    }
+    const parsedQuantity = parseInt(quantity, 10);
+    if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+      throw new AppError('Quantity must be a valid number greater than 0', 400);
+    }
+
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) throw new AppError(MESSAGES.CART_NOT_FOUND, 404);
 
@@ -71,11 +87,11 @@ exports.updateItemQuantity = async (req, res, next) => {
     if (!product) throw new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404);
     if (!product.isActive) throw new AppError('This product is no longer available', 400);
 
-    if (product.stock < Number(quantity)) {
+    if (product.stock < parsedQuantity) {
       throw new AppError(MESSAGES.NOT_ENOUGH_STOCK, 400);
     }
 
-    cart.items[itemIndex].quantity = Number(quantity);
+    cart.items[itemIndex].quantity = parsedQuantity;
     cart.items[itemIndex].price = product.discountPrice > 0 ? product.discountPrice : product.price;
 
     await cart.save();

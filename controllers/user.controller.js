@@ -37,6 +37,9 @@ exports.addUser = async (req, res, next) => {
     const user = await User.create(userData);
     res.status(201).json({ success: true, data: user });
   } catch (error) {
+    if (req.body?.avatar?.public_id) {
+      await cloudinary.uploader.destroy(req.body.avatar.public_id).catch(() => {});
+    }
     next(error);
   }
 };
@@ -104,6 +107,12 @@ exports.updateUser = async (req, res, next) => {
       return next(new AppError(MESSAGES.USER_NOT_AUTHORIZED, 403));
     }
 
+    const existingUser = await User.findById(req.params.id);
+    if (!existingUser) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return next(new AppError(MESSAGES.USER_NOT_FOUND, 404));
+    }
+
     if (req.user.role === 'admin' && req.body.email) {
       const emailExists = await User.findOne({ email: req.body.email, _id: { $ne: req.params.id } });
       if (emailExists) {
@@ -114,15 +123,9 @@ exports.updateUser = async (req, res, next) => {
 
     if (req.file) {
       try {
-        const existingUser = await User.findById(req.params.id);
-
         const result = await cloudinary.uploader.upload(req.file.path, {
           folder: 'ecommerce/users'
         });
-
-        if (existingUser?.avatar?.public_id) {
-          await cloudinary.uploader.destroy(existingUser.avatar.public_id);
-        }
 
         req.body.avatar = {
           public_id: result.public_id,
@@ -163,9 +166,15 @@ exports.updateUser = async (req, res, next) => {
       runValidators: true
     });
 
-    if (!user) return next(new AppError(MESSAGES.USER_NOT_FOUND, 404));
+    if (req.file && existingUser?.avatar?.public_id) {
+      await cloudinary.uploader.destroy(existingUser.avatar.public_id).catch(() => {});
+    }
+
     res.status(200).json({ success: true, data: user });
   } catch (error) {
+    if (req.body?.avatar?.public_id) {
+      await cloudinary.uploader.destroy(req.body.avatar.public_id).catch(() => {});
+    }
     next(error);
   }
 };
@@ -178,11 +187,10 @@ exports.deleteUser = async (req, res, next) => {
     const user = await User.findById(req.params.id);
     if (!user) return next(new AppError(MESSAGES.USER_NOT_FOUND, 404));
 
-    if (user.avatar?.public_id) {
-      await cloudinary.uploader.destroy(user.avatar.public_id);
-    }
+    // Soft delete to preserve referential integrity for Orders
+    user.isActive = false;
+    await user.save();
 
-    await User.deleteOne({ _id: req.params.id });
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
     next(error);

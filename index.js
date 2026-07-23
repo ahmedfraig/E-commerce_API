@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 const connectDB = require('./DB/connection');
 const errorHandler = require('./middleware/error.middleware');
 const AppError = require('./utils/AppError');
+const logger = require('./utils/logger');
 
 // Route files
 const authRoutes = require('./routes/auth.routes');
@@ -32,18 +33,17 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting
+// Global rate limiter — protects all routes from general abuse
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests from this IP, please try again later.' }
 });
-app.use('/api', limiter);
-app.use('/auth', rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20, // 20 requests per 15 mins for auth
-  message: 'Too many auth requests from this IP, please try again later.'
-}));
+app.use(limiter);
+// Note: Sensitive auth endpoints (login, OTP) have their own strict limiters
+// applied directly in routes/auth.routes.js
 
 // Stripe Webhook MUST be before express.json()
 const { stripeWebhook } = require('./controllers/order.controller');
@@ -89,13 +89,11 @@ module.exports = app;
 
 // Process-level error handlers for graceful shutdown
 process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED PROMISE REJECTION:', err.name, err.message);
-  console.error('Shutting down server gracefully...');
+  logger.error('UNHANDLED PROMISE REJECTION', { name: err.name, message: err.message, stack: err.stack });
   server.close(() => process.exit(1));
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION:', err.name, err.message);
-  console.error('Shutting down server immediately...');
+  logger.error('UNCAUGHT EXCEPTION', { name: err.name, message: err.message, stack: err.stack });
   process.exit(1);
 });

@@ -7,6 +7,7 @@ const { orderConfirmationEmail } = require('../utils/emailTemplates');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
+const logger = require('../utils/logger');
 
 const VALID_ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
 exports.createOrder = async (req, res, next) => {
@@ -94,7 +95,7 @@ exports.createOrder = async (req, res, next) => {
         html
       });
     } catch (err) {
-      console.error('Order confirmation email could not be sent', err);
+      logger.warn('Order confirmation email could not be sent', { orderId: order._id, error: err.message });
     }
 
     res.status(201).json({ success: true, data: order[0] });
@@ -147,7 +148,7 @@ exports.stripeWebhook = async (req, res) => {
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error('Webhook Error:', err.message);
+    logger.error('Stripe Webhook signature verification failed', { error: err.message });
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -170,7 +171,7 @@ exports.stripeWebhook = async (req, res) => {
                 order.transactionId = paymentIntent.id;
                 await order.save();
               } catch (err) {
-                console.error('Failed to automatically refund cancelled order:', err);
+                logger.error('Failed to automatically refund cancelled order', { error: err.message, stack: err.stack });
                 throw err;
               }
             }
@@ -199,8 +200,14 @@ exports.stripeWebhook = async (req, res) => {
                 order.adminNote = `Auto-refunded: ${outOfStockItem} went out of stock before payment completed.`;
                 await order.save({ session });
               } else {
-                for (const item of order.items) {
-                  await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } }, { session });
+                if (order.items && order.items.length > 0) {
+                  const bulkOps = order.items.map(item => ({
+                    updateOne: {
+                      filter: { _id: item.product },
+                      update: { $inc: { stock: -item.quantity } }
+                    }
+                  }));
+                  await Product.bulkWrite(bulkOps, { session });
                 }
                 order.paymentStatus = 'paid';
                 order.paidAt = Date.now();
@@ -238,7 +245,7 @@ exports.stripeWebhook = async (req, res) => {
             await session.commitTransaction();
             } catch (error) {
             await session.abortTransaction();
-            console.error('Failed to cancel order on payment failure:', error);
+            logger.error('Failed to cancel order on payment failure', { error: error.message, stack: error.stack });
             throw error;
           } finally {
             session.endSession();
@@ -249,7 +256,7 @@ exports.stripeWebhook = async (req, res) => {
 
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Stripe Webhook Processing Error:', error);
+    logger.error('Stripe Webhook Processing Error', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
@@ -314,14 +321,14 @@ exports.cancelOrder = async (req, res, next) => {
     order.cancelledAt = Date.now();
     await order.save({ session });
 
-    if (shouldRestoreStock) {
-      for (const item of order.items) {
-        await Product.findByIdAndUpdate(
-          item.product,
-          { $inc: { stock: item.quantity } },
-          { session }
-        );
-      }
+    if (shouldRestoreStock && order.items && order.items.length > 0) {
+      const bulkOps = order.items.map(item => ({
+        updateOne: {
+          filter: { _id: item.product },
+          update: { $inc: { stock: item.quantity } }
+        }
+      }));
+      await Product.bulkWrite(bulkOps, { session });
     }
 
     await session.commitTransaction();

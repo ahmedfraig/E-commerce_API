@@ -26,6 +26,11 @@ exports.protect = async (req, res, next) => {
       return next(new AppError('The user belonging to this token does no longer exist.', 401));
     }
 
+    // Check if user is deactivated
+    if (req.user.isActive === false) {
+      return next(new AppError('Your account has been deactivated.', 403));
+    }
+
     // Enforce forced password change
     if (req.user.needsPasswordChange) {
       const allowedPaths = ['/change-password', '/logout'];

@@ -46,7 +46,7 @@ exports.createProductSchema = Joi.object({
   featured: Joi.boolean().optional(),
   isActive: Joi.boolean().optional(),
   images: Joi.any().optional()
-});
+}).options({ stripUnknown: true });
 
 exports.updateProductSchema = Joi.object({
   name: Joi.string().trim().min(3).max(200).optional().messages({
@@ -82,7 +82,7 @@ exports.updateProductSchema = Joi.object({
   isActive: Joi.boolean().optional(),
   images: Joi.any().optional(),
   deletedImages: Joi.string().optional() // JSON array as string
-});
+}).min(1).options({ stripUnknown: true });
 
 exports.addReviewSchema = Joi.object({
   rating: Joi.number().integer().min(1).max(5).required().messages({
@@ -97,4 +97,25 @@ exports.addReviewSchema = Joi.object({
     'string.max': 'Comment cannot exceed 1000 characters',
     'any.required': 'Comment is required'
   })
-});
+}).options({ stripUnknown: true });
+
+exports.productIdSchema = Joi.object({
+  id: Joi.string().trim().hex().length(24).required().messages({
+    'string.hex': 'Product ID must only contain hexadecimal characters',
+    'string.length': 'Product ID must be exactly 24 characters long',
+    'any.required': 'Product ID is required'
+  })
+}).options({ stripUnknown: true });
+
+exports.reviewIdSchema = Joi.object({
+  id: Joi.string().trim().hex().length(24).required().messages({
+    'string.hex': 'Product ID must only contain hexadecimal characters',
+    'string.length': 'Product ID must be exactly 24 characters long',
+    'any.required': 'Product ID is required'
+  }),
+  rid: Joi.string().trim().hex().length(24).required().messages({
+    'string.hex': 'Review ID must only contain hexadecimal characters',
+    'string.length': 'Review ID must be exactly 24 characters long',
+    'any.required': 'Review ID is required'
+  })
+}).options({ stripUnknown: true });

@@ -28,6 +28,10 @@ const phoneField = () => Joi.string().pattern(PHONE_PATTERN).optional().messages
   'string.pattern.base': 'Please provide a valid phone number'
 });
 
+exports.passwordField = passwordField;
+exports.emailField = emailField;
+exports.phoneField = phoneField;
+
 exports.registerSchema = Joi.object({
   username: Joi.string().min(2).max(50).required().messages({
     'string.min': 'Username must be at least 2 characters',
@@ -37,7 +41,7 @@ exports.registerSchema = Joi.object({
   email: emailField(),
   password: passwordField(),
   phone: phoneField()
-});
+}).options({ stripUnknown: true });
 
 exports.verifyOtpSchema = Joi.object({
   email: emailField(),
@@ -45,58 +49,30 @@ exports.verifyOtpSchema = Joi.object({
     'string.length': 'OTP must be exactly 6 digits',
     'any.required': 'OTP is required'
   })
-});
+}).options({ stripUnknown: true });
 
 exports.loginSchema = Joi.object({
   email: emailField(),
   password: Joi.string().required().messages({
     'any.required': 'Password is required'
   })
-});
+}).options({ stripUnknown: true });
 
 exports.forgotPasswordSchema = Joi.object({
   email: emailField()
-});
+}).options({ stripUnknown: true });
 
 exports.resetPasswordSchema = Joi.object({
   otp: Joi.string().required().messages({
     'any.required': 'Reset token is required'
   }),
   newPassword: passwordField()
-});
+}).options({ stripUnknown: true });
 
 exports.changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required().messages({
     'any.required': 'Current password is required'
   }),
   newPassword: passwordField()
-});
+}).options({ stripUnknown: true });
 
-exports.addUserSchema = Joi.object({
-  username: Joi.string().min(2).max(50).required().messages({
-    'string.min': 'Username must be at least 2 characters',
-    'any.required': 'Username is required'
-  }),
-  email: emailField(),
-  password: passwordField(),
-  phone: phoneField(),
-  role: Joi.string().valid('admin', 'customer').optional().messages({
-    'any.only': 'Role must be either admin or customer'
-  }),
-  avatar: Joi.any().optional()
-});
-
-exports.updateUserSchema = Joi.object({
-  username: Joi.string().min(2).max(50).optional(),
-  email: emailField(false),
-  phone: phoneField(),
-  avatar: Joi.any().optional(),
-  addresses: Joi.any().optional()
-});
-
-exports.changeRoleSchema = Joi.object({
-  role: Joi.string().valid('admin', 'customer').required().messages({
-    'any.only': 'Role must be either admin or customer',
-    'any.required': 'Role is required'
-  })
-});

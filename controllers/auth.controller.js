@@ -30,11 +30,16 @@ exports.registerSendOtp = async (req, res, next) => {
       userData
     });
 
-    await sendEmail({
-      email,
-      subject: 'Your Registration OTP',
-      message: `Your OTP is ${otp}. It is valid for 10 minutes.`
-    });
+    try {
+      await sendEmail({
+        email,
+        subject: 'Your Registration OTP',
+        message: `Your OTP is ${otp}. It is valid for 10 minutes.`
+      });
+    } catch (emailError) {
+      await OTP.deleteOne({ email });
+      return next(new AppError('Failed to send OTP email, please try again.', 500));
+    }
 
     res.status(200).json({ success: true, message: MESSAGES.OTP_SENT });
   } catch (error) {
@@ -72,6 +77,8 @@ exports.login = async (req, res, next) => {
     const user = await User.findOne({ email }).select('+password');
     if (!user) return next(new AppError(MESSAGES.INVALID_CREDENTIALS, 401));
 
+    if (user.isActive === false) return next(new AppError('Your account has been deactivated', 403));
+
     if (!user.isVerified) return next(new AppError(MESSAGES.EMAIL_NOT_VERIFIED, 403));
 
     const isMatch = await user.comparePassword(password);
@@ -93,7 +100,7 @@ exports.refreshToken = async (req, res, next) => {
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     const user = await User.findById(decoded.id);
 
-    if (!user) return next(new AppError(MESSAGES.USER_NOT_FOUND, 401));
+    if (!user || user.isActive === false) return next(new AppError(MESSAGES.USER_NOT_FOUND, 401));
 
     sendTokenResponse(user, 200, res);
   } catch (error) {
@@ -112,7 +119,7 @@ exports.logout = (req, res) => {
 exports.forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email, isActive: { $ne: false } });
     if (!user) {
       // Intentionally vague to prevent email enumeration
       return res.status(200).json({ success: true, message: MESSAGES.PASSWORD_RESET_SENT });
@@ -142,8 +149,13 @@ exports.forgotPassword = async (req, res, next) => {
 
 exports.resetPassword = async (req, res, next) => {
   try {
-    const { otp, newPassword } = req.body;
-    const hashedToken = crypto.createHash('sha256').update(otp).digest('hex');
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return next(new AppError('Token and new password are required', 400));
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
