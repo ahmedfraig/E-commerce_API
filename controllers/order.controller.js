@@ -161,9 +161,6 @@ exports.stripeWebhook = async (req, res) => {
         const order = await Order.findById(orderId);
         if (order) {
           if (order.status === 'cancelled') {
-            // Race condition: User cancelled the order while the Stripe checkout tab was open, 
-            // and then paid for it. We must refund them immediately so they don't lose money 
-            // on an order that already had its stock restored.
             if (order.paymentStatus !== 'refunded') {
               try {
                 await stripe.refunds.create({ payment_intent: paymentIntent.id });
