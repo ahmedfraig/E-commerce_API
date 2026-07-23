@@ -189,7 +189,6 @@ exports.stripeWebhook = async (req, res) => {
               }
 
               if (!stockAvailable) {
-                // Overselling occurred
                 await stripe.refunds.create({ payment_intent: paymentIntent.id });
                 order.paymentStatus = 'refunded';
                 order.status = 'cancelled';

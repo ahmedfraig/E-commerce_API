@@ -187,7 +187,6 @@ exports.deleteUser = async (req, res, next) => {
     const user = await User.findById(req.params.id);
     if (!user) return next(new AppError(MESSAGES.USER_NOT_FOUND, 404));
 
-    // Soft delete to preserve referential integrity for Orders
     user.isActive = false;
     await user.save();
 

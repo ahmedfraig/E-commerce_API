@@ -2,14 +2,12 @@ const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
 
-// Custom format: timestamp + level + message + optional metadata
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }), // capture full stack on Error objects
+  winston.format.errors({ stack: true }),
   winston.format.json()
 );
 
-// Human-readable format for development console output
 const devFormat = winston.format.combine(
   winston.format.colorize(),
   winston.format.timestamp({ format: 'HH:mm:ss' }),
@@ -33,13 +31,11 @@ if (process.env.LOG_TO_FILE === 'true' || process.env.NODE_ENV !== 'production')
     fs.mkdirSync(logsDir, { recursive: true });
   }
   transports.push(
-    // error.log captures only errors and above
     new winston.transports.File({
       filename: path.join(logsDir, 'error.log'),
       level: 'error',
       format: logFormat
     }),
-    // combined.log captures everything (info, warn, error)
     new winston.transports.File({
       filename: path.join(logsDir, 'combined.log'),
       format: logFormat

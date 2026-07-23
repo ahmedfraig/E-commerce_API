@@ -5,7 +5,6 @@ const fs = require('fs');
 const AppError = require('../utils/AppError');
 const { MESSAGES } = require('../utils/constants');
 
-// Helper to upload images to Cloudinary (Transactional with Rollback)
 const uploadImages = async (files) => {
   const uploadPromises = files.map(file => {
     return cloudinary.uploader.upload(file.path, {
@@ -42,7 +41,8 @@ const uploadImages = async (files) => {
   }
 
   return successfulUploads;
-};exports.getProducts = async (req, res, next) => {
+};
+exports.getProducts = async (req, res, next) => {
   try {
     const { category, brand, minPrice, maxPrice, sort, featured, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
     const page = parseInt(pageQuery, 10);
@@ -78,7 +78,8 @@ const uploadImages = async (files) => {
   } catch (error) {
     next(error);
   }
-};exports.searchProducts = async (req, res, next) => {
+};
+exports.searchProducts = async (req, res, next) => {
   try {
     const { text, category, subcategory, brand, tags, minPrice, maxPrice, sort, page: pageQuery = 1, limit: limitQuery = 10 } = req.query;
     const page = parseInt(pageQuery, 10);
@@ -112,7 +113,8 @@ const uploadImages = async (files) => {
   } catch (error) {
     next(error);
   }
-};exports.getProduct = async (req, res, next) => {
+};
+exports.getProduct = async (req, res, next) => {
   try {
     const product = await Product.findOne({ _id: req.params.id, isActive: true }).lean();
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
@@ -120,7 +122,8 @@ const uploadImages = async (files) => {
   } catch (error) {
     next(error);
   }
-};exports.createProduct = async (req, res, next) => {
+};
+exports.createProduct = async (req, res, next) => {
   try {
     req.body.createdBy = req.user.id;
 
@@ -155,8 +158,8 @@ const uploadImages = async (files) => {
     }
     next(error);
   }
-};exports.updateProduct = async (req, res, next) => {
-  // Track uploaded Cloudinary images so we can roll them back on any error
+};
+exports.updateProduct = async (req, res, next) => {
   let newImages = [];
   try {
     let product = await Product.findById(req.params.id);
@@ -223,7 +226,6 @@ const uploadImages = async (files) => {
     await product.save();
     res.status(200).json({ success: true, data: product });
   } catch (error) {
-    //Roll back any Cloudinary images that were uploaded before the error occurred
     if (newImages.length > 0) {
       await Promise.allSettled(newImages.map(img => cloudinary.uploader.destroy(img.public_id)));
     }
@@ -232,7 +234,8 @@ const uploadImages = async (files) => {
     }
     next(error);
   }
-};exports.deleteProduct = async (req, res, next) => {
+};
+exports.deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
@@ -244,7 +247,8 @@ const uploadImages = async (files) => {
   } catch (error) {
     next(error);
   }
-};exports.addReview = async (req, res, next) => {
+};
+exports.addReview = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
@@ -278,7 +282,8 @@ const uploadImages = async (files) => {
   } catch (error) {
     next(error);
   }
-};exports.deleteReview = async (req, res, next) => {
+};
+exports.deleteReview = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));
@@ -298,7 +303,8 @@ const uploadImages = async (files) => {
   } catch (error) {
     next(error);
   }
-};exports.getReviews = async (req, res, next) => {
+};
+exports.getReviews = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id).select('reviews').lean();
     if (!product) return next(new AppError(MESSAGES.PRODUCT_NOT_FOUND, 404));

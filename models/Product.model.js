@@ -112,14 +112,12 @@ const productSchema = new mongoose.Schema({
 productSchema.index({ name: 'text', description: 'text', brand: 'text' });
 productSchema.index({ category: 1, brand: 1, price: 1, averageRating: -1, createdAt: -1 });
 
-// Pre-save hook for slug
 productSchema.pre('save', function () {
   if (this.isModified('name')) {
     this.slug = slugify(this.name, { lower: true, strict: true });
   }
 });
 
-// Method to calculate average rating
 productSchema.methods.calcAverageRating = function () {
   if (this.reviews.length === 0) {
     this.averageRating = 0;

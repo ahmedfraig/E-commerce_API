@@ -81,7 +81,7 @@ exports.updateProductSchema = Joi.object({
   featured: Joi.boolean().optional(),
   isActive: Joi.boolean().optional(),
   images: Joi.any().optional(),
-  deletedImages: Joi.string().optional() // JSON array as string
+  deletedImages: Joi.string().optional()
 }).min(1).options({ stripUnknown: true });
 
 exports.addReviewSchema = Joi.object({

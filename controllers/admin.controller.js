@@ -99,7 +99,6 @@ exports.getDashboardStats = async (req, res, next) => {
         },
         { $sort: { _id: 1 } }
       ]),
-      // Recent orders
       Order.find()
         .sort('-createdAt')
         .limit(5)
@@ -107,7 +106,6 @@ exports.getDashboardStats = async (req, res, next) => {
         .lean()
     ]);
 
-    // Build orders breakdown from aggregation
     const statusList = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
     const orders = { total: 0 };
     statusList.forEach(s => { orders[s] = 0; });
@@ -116,7 +114,6 @@ exports.getDashboardStats = async (req, res, next) => {
       orders.total += count;
     });
 
-    // Revenue calculations
     const totalRev = totalRevenueAgg[0]?.total || 0;
     const thisMonthRev = thisMonthRevenueAgg[0]?.total || 0;
     const lastMonthRev = lastMonthRevenueAgg[0]?.total || 0;
@@ -210,7 +207,6 @@ exports.updateOrderStatus = async (req, res, next) => {
     const order = await Order.findById(req.params.id).populate('user', 'email');
     if (!order) return next(new AppError(MESSAGES.ORDER_NOT_FOUND, 404));
 
-    // Enforce valid status transitions
     const validTransitions = {
       pending:    ['confirmed', 'cancelled'],
       confirmed:  ['processing', 'cancelled'],
@@ -232,7 +228,6 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (status === 'cancelled') {
       order.cancelledAt = Date.now();
 
-      // Restore stock for each item using bulk operations for better performance
       if (order.items && order.items.length > 0) {
         const bulkOps = order.items.map(item => ({
           updateOne: {
@@ -243,7 +238,6 @@ exports.updateOrderStatus = async (req, res, next) => {
         await Product.bulkWrite(bulkOps);
       }
 
-      // Mark payment as refunded if already paid
       if (order.paymentStatus === 'paid') {
         order.paymentStatus = 'refunded';
       }
@@ -251,7 +245,6 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     await order.save();
 
-    // Send automated email
     try {
       const { subject, html } = orderStatusUpdateEmail(order, status);
       await sendEmail({

@@ -17,7 +17,6 @@ exports.getWishlist = async (req, res, next) => {
       wishlist = created.toObject();
     }
 
-    // Filter out nulls in case some products were permanently deleted from DB
     if (wishlist.products) {
       wishlist.products = wishlist.products.filter(p => p !== null);
     }

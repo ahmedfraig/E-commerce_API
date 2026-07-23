@@ -121,7 +121,6 @@ exports.forgotPassword = async (req, res, next) => {
     const { email } = req.body;
     const user = await User.findOne({ email, isActive: { $ne: false } });
     if (!user) {
-      // Intentionally vague to prevent email enumeration
       return res.status(200).json({ success: true, message: MESSAGES.PASSWORD_RESET_SENT });
     }
 

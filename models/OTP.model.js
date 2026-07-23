@@ -14,11 +14,10 @@ const otpSchema = new mongoose.Schema({
     required: true
   },
   userData: {
-    type: Object // Temporary storage for registration data
+    type: Object
   }
 }, { timestamps: true });
 
-// Add a TTL index so MongoDB automatically deletes expired docs
 otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const OTP = mongoose.model('OTP', otpSchema);

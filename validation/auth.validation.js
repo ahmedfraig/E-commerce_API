@@ -1,6 +1,5 @@
 const Joi = require('joi');
 
-// Reusable patterns
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
 const PHONE_PATTERN = /^[+]?[\d\s\-()]{7,15}$/;
 
