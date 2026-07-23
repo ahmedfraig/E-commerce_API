@@ -47,13 +47,13 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
-app.use('/auth', authRoutes);
-app.use('/users', userRoutes);
-app.use('/products', productRoutes);
-app.use('/carts', cartRoutes);
-app.use('/orders', orderRoutes);
-app.use('/wishlists', wishlistRoutes);
-app.use('/admin', adminRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/carts', cartRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/wishlists', wishlistRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
   res.send('Ecommerce API is running...');
