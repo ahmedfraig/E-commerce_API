@@ -2,12 +2,6 @@ const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure logs directory exists
-const logsDir = path.join(__dirname, '../logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
-
 // Custom format: timestamp + level + message + optional metadata
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -33,7 +27,13 @@ const transports = [
   }),
 ];
 
+// Only create logs directory and file transports when NOT in production (i.e. local dev)
+// Vercel and other serverless platforms have a read-only filesystem
 if (process.env.LOG_TO_FILE === 'true' || process.env.NODE_ENV !== 'production') {
+  const logsDir = path.join(__dirname, '../logs');
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
   transports.push(
     // error.log captures only errors and above
     new winston.transports.File({
