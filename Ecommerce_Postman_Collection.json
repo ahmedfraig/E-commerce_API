@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "E-Commerce API Complete",
-    "description": "Full collection containing every endpoint for the SEF E-commerce API. Features automatic token management — login once and the token is saved for all subsequent requests. All passwords must be 8+ characters with at least one uppercase letter, one lowercase letter, and one number.",
+    "description": "Comprehensive test collection for the SEF E-commerce API. All routes use /api/ prefix. Features: auto-saved tokens & IDs, filter params, error test cases, and all endpoint variations. Variables: base_url, token, product_id, order_id, user_id, review_id.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -12,6 +12,26 @@
     },
     {
       "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "review_id",
       "value": "",
       "type": "string"
     }
@@ -35,11 +55,12 @@
               "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Password123\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/auth/register/send-otp",
+              "raw": "{{base_url}}/api/auth/register/send-otp",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "register",
                 "send-otp"
@@ -62,16 +83,29 @@
               "raw": "{\n  \"email\": \"testuser@gmail.com\",\n  \"otp\": \"123456\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/auth/verify-otp",
+              "raw": "{{base_url}}/api/auth/verify-otp",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "verify-otp"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "if(r.accessToken){pm.collectionVariables.set('token',r.accessToken);}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Login",
@@ -80,8 +114,8 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "var res = pm.response.json();",
-                  "if(res.accessToken) { pm.collectionVariables.set('token', res.accessToken); }"
+                  "var r=pm.response.json();",
+                  "if(r.accessToken){pm.collectionVariables.set('token',r.accessToken);}"
                 ],
                 "type": "text/javascript"
               }
@@ -100,11 +134,12 @@
               "raw": "{\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Password123\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/auth/login",
+              "raw": "{{base_url}}/api/auth/login",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "login"
               ]
@@ -118,8 +153,8 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "var res = pm.response.json();",
-                  "if(res.accessToken) { pm.collectionVariables.set('token', res.accessToken); }"
+                  "var r=pm.response.json();",
+                  "if(r.accessToken){pm.collectionVariables.set('token',r.accessToken);}"
                 ],
                 "type": "text/javascript"
               }
@@ -129,11 +164,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/auth/refresh-token",
+              "raw": "{{base_url}}/api/auth/refresh-token",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "refresh-token"
               ]
@@ -163,11 +199,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/auth/logout",
+              "raw": "{{base_url}}/api/auth/logout",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "logout"
               ]
@@ -189,11 +226,12 @@
               "raw": "{\n  \"email\": \"testuser@gmail.com\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/auth/forgot-password/send-otp",
+              "raw": "{{base_url}}/api/auth/forgot-password/send-otp",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "forgot-password",
                 "send-otp"
@@ -213,17 +251,18 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"otp\": \"TOKEN_HERE\",\n  \"newPassword\": \"NewPassword123\"\n}"
+              "raw": "{\n  \"token\": \"TOKEN_HERE\",\n  \"newPassword\": \"NewPassword123\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/auth/forgot-password/verify-otp",
+              "raw": "{{base_url}}/api/auth/forgot-password/reset",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "forgot-password",
-                "verify-otp"
+                "reset"
               ]
             }
           }
@@ -239,11 +278,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/auth/me",
+              "raw": "{{base_url}}/api/auth/me",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "me"
               ]
@@ -269,9 +309,16 @@
               "raw": "{\n  \"role\": \"admin\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/auth/change-role/USER_ID_HERE",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "change-role", "USER_ID_HERE"]
+              "raw": "{{base_url}}/api/auth/change-role/USER_ID_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "change-role",
+                "USER_ID_HERE"
+              ]
             },
             "description": "Admin only. Changes a user's role to 'admin' or 'customer'. Cannot change your own role."
           }
@@ -322,16 +369,29 @@
               ]
             },
             "url": {
-              "raw": "{{base_url}}/users/add",
+              "raw": "{{base_url}}/api/users/add",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "users",
                 "add"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "if(r.data&&r.data._id){pm.collectionVariables.set('user_id',r.data._id);}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Change Password",
@@ -352,11 +412,12 @@
               "raw": "{\n  \"currentPassword\": \"Password123\",\n  \"newPassword\": \"NewPassword456\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/users/change-password",
+              "raw": "{{base_url}}/api/users/change-password",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "users",
                 "change-password"
               ]
@@ -374,11 +435,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/users/all?page=1&limit=10",
+              "raw": "{{base_url}}/api/users/all?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "users",
                 "all"
               ],
@@ -390,6 +452,21 @@
                 {
                   "key": "limit",
                   "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "test",
+                  "disabled": true
+                },
+                {
+                  "key": "role",
+                  "value": "customer",
+                  "disabled": true
+                },
+                {
+                  "key": "isVerified",
+                  "value": "true",
+                  "disabled": true
                 }
               ]
             }
@@ -406,11 +483,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "raw": "{{base_url}}/api/users/USER_ID_HERE",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "users",
                 "USER_ID_HERE"
               ]
@@ -448,14 +526,46 @@
               ]
             },
             "url": {
-              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "raw": "{{base_url}}/api/users/USER_ID_HERE",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "users",
                 "USER_ID_HERE"
               ]
+            }
+          }
+        },
+        {
+          "name": "Update My Profile (Customer)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"UpdatedName\",\n  \"phone\": \"01000000000\",\n  \"addresses\": [\n    {\n      \"fullName\": \"Ahmed\",\n      \"phone\": \"+201234567890\",\n      \"country\": \"Egypt\",\n      \"city\": \"Cairo\",\n      \"address\": \"123 Main St\",\n      \"postalCode\": \"11765\"\n    }\n  ]\n}"
             }
           }
         },
@@ -470,11 +580,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "raw": "{{base_url}}/api/users/USER_ID_HERE",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "users",
                 "USER_ID_HERE"
               ]
@@ -491,11 +602,12 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/products?page=1&limit=10",
+              "raw": "{{base_url}}/api/products?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "products"
               ],
               "query": [
@@ -506,6 +618,36 @@
                 {
                   "key": "limit",
                   "value": "10"
+                },
+                {
+                  "key": "category",
+                  "value": "Electronics",
+                  "disabled": true
+                },
+                {
+                  "key": "brand",
+                  "value": "TechBrand",
+                  "disabled": true
+                },
+                {
+                  "key": "minPrice",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "5000",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "-price",
+                  "disabled": true
+                },
+                {
+                  "key": "featured",
+                  "value": "true",
+                  "disabled": true
                 }
               ]
             }
@@ -516,11 +658,12 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/products/search?text=laptop&page=1&limit=10",
+              "raw": "{{base_url}}/api/products/search?text=laptop&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "products",
                 "search"
               ],
@@ -542,17 +685,80 @@
           }
         },
         {
-          "name": "Get Product by ID",
+          "name": "Search Products (Full Filters)",
           "request": {
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/products/PRODUCT_ID_HERE",
+              "raw": "{{base_url}}/api/products/search?text=laptop&category=Electronics&minPrice=100&maxPrice=2000&brand=TechBrand&sort=-price&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "products",
-                "PRODUCT_ID_HERE"
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "text",
+                  "value": "laptop"
+                },
+                {
+                  "key": "category",
+                  "value": "Electronics",
+                  "disabled": true
+                },
+                {
+                  "key": "brand",
+                  "value": "TechBrand",
+                  "disabled": true
+                },
+                {
+                  "key": "minPrice",
+                  "value": "100",
+                  "disabled": true
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "2000",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "-price",
+                  "disabled": true
+                },
+                {
+                  "key": "tags",
+                  "value": "gaming,portable",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}"
               ]
             }
           }
@@ -613,15 +819,28 @@
               ]
             },
             "url": {
-              "raw": "{{base_url}}/products",
+              "raw": "{{base_url}}/api/products",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "products"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "if(r.data&&r.data._id){pm.collectionVariables.set('product_id',r.data._id);}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Update Product (Admin)",
@@ -644,11 +863,12 @@
               ]
             },
             "url": {
-              "raw": "{{base_url}}/products/update/PRODUCT_ID_HERE",
+              "raw": "{{base_url}}/api/products/update/PRODUCT_ID_HERE",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "products",
                 "update",
                 "PRODUCT_ID_HERE"
@@ -667,11 +887,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/products/PRODUCT_ID_HERE",
+              "raw": "{{base_url}}/api/products/PRODUCT_ID_HERE",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "products",
                 "PRODUCT_ID_HERE"
               ]
@@ -697,11 +918,12 @@
               "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Excellent product!\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/products/PRODUCT_ID_HERE/reviews",
+              "raw": "{{base_url}}/api/products/PRODUCT_ID_HERE/reviews",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "products",
                 "PRODUCT_ID_HERE",
                 "reviews"
@@ -720,11 +942,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/products/PRODUCT_ID_HERE/reviews/REVIEW_ID_HERE",
+              "raw": "{{base_url}}/api/products/PRODUCT_ID_HERE/reviews/REVIEW_ID_HERE",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "products",
                 "PRODUCT_ID_HERE",
                 "reviews",
@@ -738,11 +961,12 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/products/PRODUCT_ID_HERE/reviews",
+              "raw": "{{base_url}}/api/products/PRODUCT_ID_HERE/reviews",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "products",
                 "PRODUCT_ID_HERE",
                 "reviews"
@@ -766,11 +990,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/carts",
+              "raw": "{{base_url}}/api/carts",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "carts"
               ]
             }
@@ -792,14 +1017,15 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": \"PRODUCT_ID_HERE\",\n  \"quantity\": 2\n}"
+              "raw": "{\n  \"productId\": \"{{product_id}}\",\n  \"quantity\": 2\n}"
             },
             "url": {
-              "raw": "{{base_url}}/carts/items",
+              "raw": "{{base_url}}/api/carts/items",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "carts",
                 "items"
               ]
@@ -822,14 +1048,15 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": \"PRODUCT_ID_HERE\",\n  \"quantity\": 5\n}"
+              "raw": "{\n  \"productId\": \"{{product_id}}\",\n  \"quantity\": 5\n}"
             },
             "url": {
-              "raw": "{{base_url}}/carts/items",
+              "raw": "{{base_url}}/api/carts/items",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "carts",
                 "items"
               ]
@@ -847,14 +1074,15 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/carts/items/PRODUCT_ID_HERE",
+              "raw": "{{base_url}}/api/carts/items/{{product_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "carts",
                 "items",
-                "PRODUCT_ID_HERE"
+                "{{product_id}}"
               ]
             }
           }
@@ -878,15 +1106,17 @@
               "raw": "{\n  \"code\": \"SAVE20\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/carts/coupon",
+              "raw": "{{base_url}}/api/carts/coupon",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "carts",
                 "coupon"
               ]
-            }
+            },
+            "description": "Available coupons: SAVE10 (10%), SAVE20 (20%), SAVE50 (50%), SAVE80 (80%), OFF50 ($50 fixed)"
           }
         },
         {
@@ -900,11 +1130,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/carts/coupon",
+              "raw": "{{base_url}}/api/carts/coupon",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "carts",
                 "coupon"
               ]
@@ -922,11 +1153,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/carts/clear",
+              "raw": "{{base_url}}/api/carts/clear",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "carts",
                 "clear"
               ]
@@ -957,15 +1189,70 @@
               "raw": "{\n  \"shippingAddress\": {\n    \"fullName\": \"John Doe\",\n    \"phone\": \"1234567890\",\n    \"country\": \"USA\",\n    \"city\": \"New York\",\n    \"address\": \"123 Main St\",\n    \"postalCode\": \"10001\"\n  },\n  \"paymentMethod\": \"cash\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/orders",
+              "raw": "{{base_url}}/api/orders",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "orders"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "if(r.data&&r.data._id){pm.collectionVariables.set('order_id',r.data._id);}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Order (Stripe)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shippingAddress\": {\n    \"fullName\": \"John Doe\",\n    \"phone\": \"1234567890\",\n    \"country\": \"USA\",\n    \"city\": \"New York\",\n    \"address\": \"123 Main St\",\n    \"postalCode\": \"10001\"\n  },\n  \"paymentMethod\": \"stripe\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var r=pm.response.json();",
+                  "if(r.data&&r.data._id){pm.collectionVariables.set('order_id',r.data._id);}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Create Payment Intent (Stripe)",
@@ -975,17 +1262,26 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/orders/create-payment-intent",
+              "raw": "{{base_url}}/api/orders/create-payment-intent",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "orders",
                 "create-payment-intent"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{order_id}}\"\n}"
             }
           }
         },
@@ -1000,11 +1296,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/orders/my?page=1&limit=10",
+              "raw": "{{base_url}}/api/orders/my?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "orders",
                 "my"
               ],
@@ -1016,6 +1313,11 @@
                 {
                   "key": "limit",
                   "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "disabled": true
                 }
               ]
             }
@@ -1032,11 +1334,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/orders/my/ORDER_ID_HERE",
+              "raw": "{{base_url}}/api/orders/my/ORDER_ID_HERE",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "orders",
                 "my",
                 "ORDER_ID_HERE"
@@ -1055,11 +1358,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/orders/my/ORDER_ID_HERE/cancel",
+              "raw": "{{base_url}}/api/orders/my/ORDER_ID_HERE/cancel",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "orders",
                 "my",
                 "ORDER_ID_HERE",
@@ -1084,11 +1388,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/wishlists/my",
+              "raw": "{{base_url}}/api/wishlists/my",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "wishlists",
                 "my"
               ]
@@ -1106,14 +1411,15 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/wishlists/add/PRODUCT_ID_HERE",
+              "raw": "{{base_url}}/api/wishlists/add/{{product_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "wishlists",
                 "add",
-                "PRODUCT_ID_HERE"
+                "{{product_id}}"
               ]
             }
           }
@@ -1129,14 +1435,15 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/wishlists/remove/PRODUCT_ID_HERE",
+              "raw": "{{base_url}}/api/wishlists/remove/{{product_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "wishlists",
                 "remove",
-                "PRODUCT_ID_HERE"
+                "{{product_id}}"
               ]
             }
           }
@@ -1152,11 +1459,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/wishlists/clear",
+              "raw": "{{base_url}}/api/wishlists/clear",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "wishlists",
                 "clear"
               ]
@@ -1179,11 +1487,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/admin/dashboard",
+              "raw": "{{base_url}}/api/admin/dashboard",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "admin",
                 "dashboard"
               ]
@@ -1201,11 +1510,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/admin?page=1&limit=10",
+              "raw": "{{base_url}}/api/admin?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "admin"
               ],
               "query": [
@@ -1216,6 +1526,31 @@
                 {
                   "key": "limit",
                   "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "disabled": true
+                },
+                {
+                  "key": "paymentMethod",
+                  "value": "cash",
+                  "disabled": true
+                },
+                {
+                  "key": "startDate",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-12-31",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true
                 }
               ]
             }
@@ -1232,13 +1567,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/admin/ORDER_ID_HERE",
+              "raw": "{{base_url}}/api/admin/{{order_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "admin",
-                "ORDER_ID_HERE"
+                "{{order_id}}"
               ]
             }
           }
@@ -1262,16 +1598,18 @@
               "raw": "{\n  \"status\": \"shipped\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/admin/ORDER_ID_HERE/status",
+              "raw": "{{base_url}}/api/admin/{{order_id}}/status",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "admin",
-                "ORDER_ID_HERE",
+                "{{order_id}}",
                 "status"
               ]
-            }
+            },
+            "description": "Valid transitions: pending→confirmed/cancelled, confirmed→processing/cancelled, processing→shipped/cancelled, shipped→delivered, delivered→returned"
           }
         },
         {
@@ -1285,13 +1623,24 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/admin/carts",
+              "raw": "{{base_url}}/api/admin/carts?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "admin",
                 "carts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             }
           }
@@ -1307,11 +1656,12 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/admin/wishlists?page=1&limit=10",
+              "raw": "{{base_url}}/api/admin/wishlists?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "admin",
                 "wishlists"
               ],
@@ -1339,16 +1689,556 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/admin/wishlists/stats",
+              "raw": "{{base_url}}/api/admin/wishlists/stats",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
+                "api",
                 "admin",
                 "wishlists",
                 "stats"
               ]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Error & Edge Cases",
+      "item": [
+        {
+          "name": "Login - Missing Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@gmail.com\"\n}"
+            },
+            "description": "Should return 400 - Password is required"
+          }
+        },
+        {
+          "name": "Login - Wrong Credentials",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"wrong@gmail.com\",\n  \"password\": \"WrongPass123\"\n}"
+            },
+            "description": "Should return 401 - Invalid credentials"
+          }
+        },
+        {
+          "name": "Login - Weak Password Format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@gmail.com\",\n  \"password\": \"short\"\n}"
+            },
+            "description": "Should return 400 - Validation error"
+          }
+        },
+        {
+          "name": "Register - Duplicate Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/register/send-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register",
+                "send-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"test\",\n  \"email\": \"existing@gmail.com\",\n  \"password\": \"Password123\"\n}"
+            },
+            "description": "Should return 400 if email exists"
+          }
+        },
+        {
+          "name": "Access Protected Route - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Should return 401 - Not authenticated"
+          }
+        },
+        {
+          "name": "Access Protected Route - Invalid Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Use an expired/invalid token. Should return 401"
+          }
+        },
+        {
+          "name": "Get Product - Invalid ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/invalidid123",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "invalidid123"
+              ]
+            },
+            "description": "Should return 400 - validation error on ID format"
+          }
+        },
+        {
+          "name": "Get Product - Non-existent ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/aaaaaaaaaaaaaaaaaaaaaaaa",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "aaaaaaaaaaaaaaaaaaaaaaaa"
+              ]
+            },
+            "description": "Should return 404 - Product not found"
+          }
+        },
+        {
+          "name": "Add to Cart - Out of Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/carts/items",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{product_id}}\",\n  \"quantity\": 999999\n}"
+            },
+            "description": "Should return 400 - Not enough stock"
+          }
+        },
+        {
+          "name": "Create Order - Empty Cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shippingAddress\": {\n    \"fullName\": \"Test\",\n    \"phone\": \"1234567890\",\n    \"country\": \"US\",\n    \"city\": \"NY\",\n    \"address\": \"123 St\"\n  },\n  \"paymentMethod\": \"cash\"\n}"
+            },
+            "description": "Should return 400 if cart is empty"
+          }
+        },
+        {
+          "name": "Create Order - Missing Address",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"cash\"\n}"
+            },
+            "description": "Should return 400 - Shipping address required"
+          }
+        },
+        {
+          "name": "Cancel Order - Already Shipped",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orders/my/{{order_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "my",
+                "{{order_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Should return 400 if order is not pending/confirmed"
+          }
+        },
+        {
+          "name": "Admin Route - As Customer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "dashboard"
+              ]
+            },
+            "description": "Login as customer first. Should return 403 - Not authorized"
+          }
+        },
+        {
+          "name": "Change Own Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/change-role/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "change-role",
+                "{{user_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}"
+            },
+            "description": "Should return 400 - Cannot change own role (use your own user_id)"
+          }
+        },
+        {
+          "name": "Delete Self",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Should return 400 - Cannot delete yourself"
+          }
+        },
+        {
+          "name": "Change Password - Same Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/change-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "change-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Password123\",\n  \"newPassword\": \"Password123\"\n}"
+            },
+            "description": "Should return 400 - Same password"
+          }
+        },
+        {
+          "name": "Apply Coupon - Invalid Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/carts/coupon",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "coupon"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"FAKECODE\"\n}"
+            },
+            "description": "Should return 400 - Invalid coupon"
+          }
+        },
+        {
+          "name": "Remove Coupon - None Applied",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/carts/coupon",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "coupon"
+              ]
+            },
+            "description": "Should return 400 - No coupon applied"
+          }
+        },
+        {
+          "name": "Route Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/nonexistent",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "nonexistent"
+              ]
+            },
+            "description": "Should return 404 - Route not found"
+          }
+        },
+        {
+          "name": "Invalid Order Status Transition",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/{{order_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "{{order_id}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"delivered\"\n}"
+            },
+            "description": "Should return 400 if order is pending (must go pending→confirmed first)"
           }
         }
       ]

@@ -168,7 +168,7 @@ A complete **`Ecommerce_Postman_Collection.json`** is included in the root direc
 | GET    | `/auth/refresh-token`            | Exchange refresh cookie for a new access token    | Public |
 | POST   | `/auth/logout`                   | Logout user (invalidates refresh cookie)          | User   |
 | POST   | `/auth/forgot-password/send-otp` | Send password reset link to email                 | Public |
-| POST   | `/auth/forgot-password/verify-otp` | Reset password using token                      | Public |
+| POST   | `/auth/forgot-password/reset`  | Reset password using token                      | Public |
 | GET    | `/auth/me`                       | Get current logged-in user profile                | User   |
 
 ### 2. Users (`/users`)

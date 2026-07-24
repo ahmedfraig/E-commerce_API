@@ -60,7 +60,6 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpire: Date
 }, { timestamps: true });
 
-// Pre-save hook to hash password
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) {
     return;
@@ -69,25 +68,20 @@ userSchema.pre('save', async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Instance method to compare password
 userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
-
-// Generate and hash password token
 userSchema.methods.getSignedAccessToken = function () {
   return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN
   });
 };
-
 userSchema.methods.getSignedRefreshToken = function () {
   return jwt.sign({ id: this._id }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: '30d'
   });
 };
 
-// Override toJSON method to hide sensitive data
 userSchema.methods.toJSON = function () {
   const user = this.toObject();
   delete user.password;

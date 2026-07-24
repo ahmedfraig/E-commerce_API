@@ -203,14 +203,14 @@ Returns 200 even if email doesn't exist (anti-enumeration). The reset link is se
 
 \begin{tabularx}{\textwidth}{@{}lX@{}}
   \textbf{Method:} & \apimethod{POST} \\
-  \textbf{URL:}    & \apipath{/auth/forgot-password/verify-otp} \\
+  \textbf{URL:}    & \apipath{/auth/forgot-password/reset} \\
   \textbf{Access:} & Public \\
 \end{tabularx}
 
 \subsection*{Request Body}
 \begin{lstlisting}[language=json]
 {
-  "otp": "raw_reset_token_from_url",
+  "token": "raw_reset_token_from_url",
   "newPassword": "NewSecure123"
 }
 \end{lstlisting}

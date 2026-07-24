@@ -62,7 +62,7 @@ exports.forgotPasswordSchema = Joi.object({
 }).options({ stripUnknown: true });
 
 exports.resetPasswordSchema = Joi.object({
-  otp: Joi.string().required().messages({
+  token: Joi.string().required().messages({
     'any.required': 'Reset token is required'
   }),
   newPassword: passwordField()

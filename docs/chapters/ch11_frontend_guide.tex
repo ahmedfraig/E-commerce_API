@@ -175,7 +175,7 @@ const logout = async () => {
   \item Call \texttt{POST /auth/forgot-password/send-otp} with \texttt{\{email\}}.
   \item User clicks the link in their email: \texttt{FRONTEND\_URL/reset-password/<token>}.
   \item Frontend extracts the token from the URL.
-  \item Call \texttt{POST /auth/forgot-password/verify-otp} with \texttt{\{otp: token, newPassword\}}.
+  \item Call \texttt{POST /auth/forgot-password/reset} with \texttt{\{token, newPassword\}}.
 \end{enumerate}
 
 \begin{lstlisting}[language=JavaScript,title=Reset Password Page]
@@ -184,8 +184,8 @@ const ResetPasswordPage = () => {
   const token = useParams().token;
   const handleSubmit = async (newPassword) => {
     const res = await api.post(
-      '/auth/forgot-password/verify-otp',
-      { otp: token, newPassword }
+      '/auth/forgot-password/reset',
+      { token, newPassword }
     );
     localStorage.setItem(
       'accessToken', res.data.accessToken
@@ -452,7 +452,7 @@ api.interceptors.response.use(
   GET    & /auth/refresh-token          & Refresh access token         & Public \\
   POST   & /auth/logout                 & Logout                       & User \\
   POST   & /auth/forgot-password/send-otp & Send reset link            & Public \\
-  POST   & /auth/forgot-password/verify-otp & Reset password           & Public \\
+  POST   & /auth/forgot-password/reset & Reset password           & Public \\
   GET    & /auth/me                     & Get current user             & User \\
   PATCH  & /auth/change-role/:id        & Change user role             & Admin \\
   \midrule
